@@ -1,0 +1,12 @@
+# Normalise line endings to LF in the repository and in the working tree.
+# Netlify builds this on Linux, and a mixed-ending tree produces spurious diffs.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.avif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
