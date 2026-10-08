@@ -1,0 +1,23 @@
+// KanoFood database schema.
+//
+// The models are not written yet. Phase 2 fills this file from
+// docs/ARCHITECTURE.md section 5. The datasource and generator are here so the
+// workspace is wired and `prisma generate` has something to read.
+//
+// Two rules govern every model added below, and neither is negotiable:
+//   1. Money is BIGINT kobo. Never Float, never Decimal. See section 5.1.
+//   2. Every table carries created_at and updated_at, and uses a UUID primary key.
+//
+// The generator name is verified against the installed Prisma version at
+// install time. Prisma has been moving from `prisma-client-js` to `prisma-client`,
+// and guessing here would ship a schema that does not generate.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}

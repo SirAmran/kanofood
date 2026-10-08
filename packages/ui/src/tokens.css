@@ -1,0 +1,241 @@
+/* KanoFood design tokens.
+ *
+ * One source. Every route group and every component consumes these names and
+ * nothing else. No component hardcodes a raw colour, size, radius or duration.
+ *
+ * See ./README.md for the standard these values exist to serve.
+ * See docs/UX_SPEC.md section 2 for the specification.
+ *
+ * Theme: light is the default. Dark follows the operating system unless an
+ * explicit data-theme is set on <html>, which the admin branding screen and a
+ * future theme toggle both use.
+ */
+
+:root {
+  color-scheme: light dark;
+
+  /* ------------------------------------------------------------------ *
+   * Brand slots
+   *
+   * The only place a brand colour is written. Everything below maps these
+   * onto semantic names, so a rebrand touches this block and nothing else.
+   * Overridden at runtime from BRAND_COLOR_PRIMARY and BRAND_COLOR_ACCENT.
+   * ------------------------------------------------------------------ */
+  --brand-primary: #10693f;
+  --brand-accent: #e8a33d;
+
+  /* ------------------------------------------------------------------ *
+   * Colour, light
+   * ------------------------------------------------------------------ */
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  --surface-sunken: #f4f5f6;
+  --surface-overlay: rgb(11 13 14 / 0.45);
+
+  --text: #0b0d0e;
+  --text-muted: #5b6268;
+  --text-inverse: #ffffff;
+
+  --border: #e4e7e9;
+  --border-strong: #ccd1d5;
+
+  --accent: var(--brand-primary);
+  --accent-hover: color-mix(in oklab, var(--brand-primary), black 10%);
+  --accent-text: #ffffff;
+  --accent-soft: color-mix(in oklab, var(--brand-primary), white 90%);
+
+  --success: #12734a;
+  --success-soft: #e3f3ec;
+  --warning: #8a5200;
+  --warning-soft: #fbf0dd;
+  --danger: #a5271b;
+  --danger-soft: #fbe9e6;
+  --info: #17558f;
+  --info-soft: #e6eef7;
+
+  --focus-ring: color-mix(in oklab, var(--brand-primary), white 25%);
+
+  /* Soft, low-contrast shadows. A big app separates surfaces with depth, not
+   * with a hard 1px border on everything. */
+  --elevation-1: 0 1px 2px rgb(11 13 14 / 0.06), 0 1px 1px rgb(11 13 14 / 0.04);
+  --elevation-2: 0 4px 14px rgb(11 13 14 / 0.10), 0 1px 3px rgb(11 13 14 / 0.06);
+  --elevation-3: 0 18px 44px rgb(11 13 14 / 0.18), 0 4px 12px rgb(11 13 14 / 0.10);
+
+  /* Skeleton shimmer. Two stops, so it reads as motion and not as a stripe. */
+  --skeleton-base: #eceef0;
+  --skeleton-sheen: #f7f8f9;
+
+  /* ------------------------------------------------------------------ *
+   * Type
+   *
+   * Six steps, base 16px, nothing below 14px. Nigerian mobile networks make a
+   * self-hosted webfont an expensive first paint, so the stack is the system
+   * one until a variable font is proven worth its weight.
+   * ------------------------------------------------------------------ */
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+
+  --text-xs: 0.875rem; /* 14 */
+  --text-base: 1rem; /* 16 */
+  --text-lg: 1.125rem; /* 18 */
+  --text-xl: 1.375rem; /* 22 */
+  --text-2xl: 1.75rem; /* 28 */
+  --text-3xl: 2.5rem; /* 40 */
+
+  --leading-tight: 1.15;
+  --leading-snug: 1.35;
+  --leading-normal: 1.55;
+
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  /* Large type is tightened, small type is left alone. */
+  --tracking-tight: -0.02em;
+  --tracking-normal: 0em;
+  --tracking-wide: 0.01em;
+
+  /* ------------------------------------------------------------------ *
+   * Spacing. 4px base.
+   * ------------------------------------------------------------------ */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  /* ------------------------------------------------------------------ *
+   * Radii and elevation names
+   * ------------------------------------------------------------------ */
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-pill: 999px;
+
+  /* ------------------------------------------------------------------ *
+   * Motion
+   *
+   * Two durations and one easing curve, deliberately. A decelerating curve is
+   * what separates "smooth" from "snappy": everything arrives slightly slower
+   * than it left. Animate transform and opacity only, never a layout property,
+   * so nothing reflows mid-animation on a low-end phone.
+   * ------------------------------------------------------------------ */
+  --duration-fast: 120ms; /* state changes: hover, press, toggle */
+  --duration-base: 220ms; /* entrances: sheets, toasts, page fades */
+  --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* ------------------------------------------------------------------ *
+   * Layout
+   * ------------------------------------------------------------------ */
+  --page-max: 1200px;
+  --content-max: 720px;
+  --gutter: clamp(16px, 4vw, 24px);
+  --touch-target: 44px;
+  --header-height: 56px;
+
+  /* Keeps fixed and sticky elements clear of a notch and the home indicator. */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+
+  --z-sticky: 100;
+  --z-header: 200;
+  --z-overlay: 300;
+  --z-modal: 400;
+  --z-toast: 500;
+}
+
+/* -------------------------------------------------------------------- *
+ * Colour, dark
+ *
+ * Near-black rather than grey, and raised surfaces step up in lightness
+ * instead of growing a border. This is the register the big streaming apps
+ * work in, and it is the one that flatters food photography.
+ * -------------------------------------------------------------------- */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --surface: #0d0f11;
+    --surface-raised: #16191c;
+    --surface-sunken: #08090a;
+    --surface-overlay: rgb(0 0 0 / 0.6);
+
+    --text: #f5f7f8;
+    --text-muted: #9aa2a8;
+    --text-inverse: #0b0d0e;
+
+    --border: #24282c;
+    --border-strong: #363c41;
+
+    --accent-hover: color-mix(in oklab, var(--brand-primary), white 12%);
+    --accent-soft: color-mix(in oklab, var(--brand-primary), black 72%);
+
+    --success: #4cc38a;
+    --success-soft: #10251c;
+    --warning: #e0a44a;
+    --warning-soft: #2a2011;
+    --danger: #f0736a;
+    --danger-soft: #2c1513;
+    --info: #6aa9e0;
+    --info-soft: #101d2b;
+
+    --focus-ring: color-mix(in oklab, var(--brand-primary), white 45%);
+
+    --elevation-1: 0 1px 2px rgb(0 0 0 / 0.4);
+    --elevation-2: 0 4px 14px rgb(0 0 0 / 0.5);
+    --elevation-3: 0 18px 44px rgb(0 0 0 / 0.65);
+
+    --skeleton-base: #1b1f22;
+    --skeleton-sheen: #23282c;
+  }
+}
+
+/* Explicit dark, so a theme toggle wins over the system setting in both
+ * directions. Kept in step with the block above. */
+:root[data-theme="dark"] {
+  --surface: #0d0f11;
+  --surface-raised: #16191c;
+  --surface-sunken: #08090a;
+  --surface-overlay: rgb(0 0 0 / 0.6);
+
+  --text: #f5f7f8;
+  --text-muted: #9aa2a8;
+  --text-inverse: #0b0d0e;
+
+  --border: #24282c;
+  --border-strong: #363c41;
+
+  --accent-hover: color-mix(in oklab, var(--brand-primary), white 12%);
+  --accent-soft: color-mix(in oklab, var(--brand-primary), black 72%);
+
+  --success: #4cc38a;
+  --success-soft: #10251c;
+  --warning: #e0a44a;
+  --warning-soft: #2a2011;
+  --danger: #f0736a;
+  --danger-soft: #2c1513;
+  --info: #6aa9e0;
+  --info-soft: #101d2b;
+
+  --focus-ring: color-mix(in oklab, var(--brand-primary), white 45%);
+
+  --elevation-1: 0 1px 2px rgb(0 0 0 / 0.4);
+  --elevation-2: 0 4px 14px rgb(0 0 0 / 0.5);
+  --elevation-3: 0 18px 44px rgb(0 0 0 / 0.65);
+
+  --skeleton-base: #1b1f22;
+  --skeleton-sheen: #23282c;
+}
+
+/* Motion is opt-out, and the opt-out is honoured here rather than in each
+ * component, so a component cannot forget. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 1ms;
+    --duration-base: 1ms;
+  }
+}

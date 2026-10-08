@@ -1,0 +1,26 @@
+{
+  "name": "kanofood",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Food delivery marketplace for Kano Metropolitan. One Next.js application, four route groups.",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "npm run dev --workspace @kanofood/web",
+    "build": "npm run build --workspace @kanofood/web",
+    "start": "npm run start --workspace @kanofood/web",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "db:generate": "npm run generate --workspace @kanofood/db",
+    "db:migrate": "npm run migrate --workspace @kanofood/db",
+    "db:studio": "npm run studio --workspace @kanofood/db"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2"
+  }
+}
