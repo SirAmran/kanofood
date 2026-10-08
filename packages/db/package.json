@@ -9,13 +9,20 @@
   "scripts": {
     "generate": "prisma generate",
     "migrate": "prisma migrate dev",
+    "deploy": "prisma migrate deploy",
     "studio": "prisma studio",
+    "seed": "node --env-file-if-exists=../../.env prisma/seed.ts",
     "typecheck": "tsc --noEmit"
   },
+  "prisma": {
+    "seed": "npm run seed"
+  },
   "dependencies": {
+    "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0"
   },
   "devDependencies": {
+    "@types/node": "^26.6.4",
     "prisma": "^7.10.0"
   }
 }

@@ -1,23 +1,612 @@
 // KanoFood database schema.
 //
-// The models are not written yet. Phase 2 fills this file from
-// docs/ARCHITECTURE.md section 5. The datasource and generator are here so the
-// workspace is wired and `prisma generate` has something to read.
+// Phase 2. Every model below is a direct transcription of docs/ARCHITECTURE.md
+// section 5, which is the source of truth for the database. Where this file
+// makes a choice section 5 left open, the comment says so and the choice is
+// reported rather than buried.
 //
-// Two rules govern every model added below, and neither is negotiable:
-//   1. Money is BIGINT kobo. Never Float, never Decimal. See section 5.1.
-//   2. Every table carries created_at and updated_at, and uses a UUID primary key.
+// Three rules govern every model here, and none is negotiable:
+//   1. Money is BIGINT kobo, held as `BigInt` in Prisma. Never Float, never
+//      Decimal. Section 5.1. The one exception is a *rate* (`commission_rate`),
+//      which is a fraction and not an amount of money.
+//   2. Every table carries `created_at` and `updated_at`, and uses a UUID
+//      primary key. Section 5.
+//   3. Orders snapshot. `address_snapshot`, `name_snapshot` and
+//      `unit_price_snapshot_kobo` freeze an order as placed. Editing a menu
+//      price or a saved address later must never rewrite history.
 //
-// The generator name is verified against the installed Prisma version at
-// install time. Prisma has been moving from `prisma-client-js` to `prisma-client`,
-// and guessing here would ship a schema that does not generate.
+// Column and table names are snake_case, matching section 5 and the rest of the
+// SQL the project will be read against. Prisma maps them to camelCase in
+// TypeScript, which is what the application code sees.
+//
+// Indexes: section 5.2 lists the named indexes and every one of them is here.
+// Postgres does not create an index for a foreign key the way MySQL does, so
+// every foreign key column additionally carries an index, whether or not 5.2
+// names it. Nothing else is indexed except where the field carries a comment
+// saying why; anything beyond those two groups is reported rather than added
+// silently.
 
 generator client {
   provider = "prisma-client-js"
 }
 
+// Prisma 7 removed `url` and `directUrl` from the schema. The migration and
+// introspection connection now lives in prisma.config.ts, pointed at
+// DIRECT_URL; the runtime client is handed a Postgres driver adapter carrying
+// DATABASE_URL in src/index.ts. Only the provider remains here.
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+//
+// Value casing follows docs/ literally rather than being normalised: section 5
+// writes roles and methods in lower case and the order lifecycle in SCREAMING
+// case, so a reader comparing this file to the spec sees the same tokens. The
+// order status values are also the ones in packages/core/src/order-status.ts,
+// and those two lists must not drift.
+// ---------------------------------------------------------------------------
+
+/// Section 5, users.role. Also used for audit_logs.actor_role and
+/// order_events.actor_role.
+enum UserRole {
+  customer
+  kitchen_staff
+  rider
+  admin
+}
+
+/// Section 5, kitchen_users.role.
+enum KitchenStaffRole {
+  owner
+  staff
+}
+
+/// Section 5, delivery_zones.payment_requirement. A zone either permits cash on
+/// delivery or requires the order to be prepaid.
+enum PaymentRequirement {
+  cod_allowed
+  prepaid_required
+}
+
+/// Section 5, orders.payment_method and payments.method.
+enum PaymentMethod {
+  cod
+  transfer
+  card
+}
+
+/// The order lifecycle. docs/PRODUCT_SPEC.md section 7.1. The transition table
+/// that governs movement between these lives in packages/core/src/order-status.ts,
+/// not here; the database records the state, it does not police the edges.
+enum OrderStatus {
+  PENDING_CONFIRMATION
+  CONFIRMED
+  KITCHEN_ACCEPTED
+  PREPARING
+  READY_FOR_PICKUP
+  RIDER_ASSIGNED
+  PICKED_UP
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CUSTOMER_CANCELLED
+  KITCHEN_REJECTED
+  ADMIN_CANCELLED
+  DELIVERY_FAILED
+}
+
+/// Section 5, payments.status. Section 5 names the column but not its values.
+/// These four are inferred from PRODUCT_SPEC section 10.1 and the reconciliation
+/// flow: cash is expected, then collected, then reconciled against the rider's
+/// hand-over. `failed` covers a collection attempt that did not happen on a
+/// cancelled or failed delivery.
+enum PaymentStatus {
+  pending
+  collected
+  reconciled
+  failed
+}
+
+/// Section 5, cash_collections.status. Values inferred the same way: the rider
+/// holds cash that has not yet reached the platform, then has handed it over,
+/// then the platform has received and counted it.
+enum CashCollectionStatus {
+  pending
+  handed_over
+  received
+}
+
+/// Section 5, kitchen_settlements.status. Values inferred; a settlement is
+/// owed, then paid.
+enum SettlementStatus {
+  pending
+  paid
+}
+
+/// Section 5, kitchen_settlements.model. The two real arrangements, described
+/// in PRODUCT_SPEC section 10.2. This is data, not a code branch: a kitchen's
+/// arrangement changes without a deploy.
+enum SettlementModel {
+  model_a
+  model_b
+}
+
+// ---------------------------------------------------------------------------
+// Identity and access
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  role         UserRole
+  phone        String?  @unique
+  email        String?  @unique
+  passwordHash String?  @map("password_hash")
+  name         String
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  sessions        Session[]
+  kitchenUsers    KitchenStaff[]
+  rider           Rider?
+  customer        Customer?
+  auditLogs       AuditLog[]
+  orderEvents     OrderEvent[]
+  paymentsReconciled Payment[] @relation("PaymentReconciledBy")
+  cashReceived    CashCollection[] @relation("CashReceivedBy")
+  settlementsPaid KitchenSettlement[] @relation("SettlementPaidBy")
+
+  @@map("users")
+}
+
+/// Refresh tokens are stored hashed and rotated on every use. Section 7. Neither
+/// the token nor the password is ever stored or logged in the clear.
+model Session {
+  id                String    @id @default(uuid(7)) @db.Uuid
+  userId            String    @map("user_id") @db.Uuid
+  refreshTokenHash  String    @unique @map("refresh_token_hash")
+  expiresAt         DateTime  @map("expires_at") @db.Timestamptz(3)
+  revokedAt         DateTime? @map("revoked_at") @db.Timestamptz(3)
+  userAgent         String?   @map("user_agent")
+  ip                String?
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+/// Append-only. Nothing edits or deletes a row here. `before` and `after` hold
+/// the entity either side of an administrative change, as JSON.
+model AuditLog {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  actorUserId String?   @map("actor_user_id") @db.Uuid
+  actorRole   UserRole? @map("actor_role")
+  action      String
+  entityType  String    @map("entity_type")
+  entityId    String    @map("entity_id")
+  before      Json?
+  after       Json?
+  ip          String?
+  userAgent   String?   @map("user_agent")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  actor User? @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId, createdAt])
+  @@map("audit_logs")
+}
+
+// ---------------------------------------------------------------------------
+// Customer
+// ---------------------------------------------------------------------------
+
+/// A customer has no account in V1. This row is created at checkout from a name
+/// and a phone number. `user_id` is nullable so customer accounts can be added
+/// later as a link, not a data-model change. Section 7.
+model Customer {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  userId    String?  @unique @map("user_id") @db.Uuid
+  name      String
+  phone     String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user      User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  addresses Address[]
+  orders    Order[]
+
+  /// Not unique: section 5 marks uniqueness explicitly where it wants it
+  /// (`users.phone`, `kitchens.slug`, `orders.order_number`) and does not here.
+  /// Indexed only, because a phone number is how a repeat customer is found.
+  @@index([phone])
+  @@map("customers")
+}
+
+model Address {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  customerId   String   @map("customer_id") @db.Uuid
+  label        String?
+  addressText  String   @map("address_text")
+  landmark     String?
+  lat          Float?
+  lng          Float?
+  instructions String?
+  isDefault    Boolean  @default(false) @map("is_default")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+  @@map("addresses")
+}
+
+// ---------------------------------------------------------------------------
+// Kitchen
+// ---------------------------------------------------------------------------
+
+model Kitchen {
+  id               String   @id @default(uuid(7)) @db.Uuid
+  name             String
+  slug             String   @unique
+  description      String?
+  phone            String?
+  logoUrl          String?  @map("logo_url")
+  coverUrl         String?  @map("cover_url")
+  addressText      String?  @map("address_text")
+  landmark         String?
+  lat              Float?
+  lng              Float?
+  isOpen           Boolean  @default(false) @map("is_open")
+  isActive         Boolean  @default(true) @map("is_active")
+  prepTimeMinutes  Int?     @map("prep_time_minutes")
+  /// A rate, not an amount of money, so it is a decimal fraction (0.1000 = 10%)
+  /// and not kobo. Zero at launch: kitchens join free. PRODUCT_SPEC section 1.
+  commissionRate   Decimal? @map("commission_rate") @db.Decimal(5, 4)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  staff       KitchenStaff[]
+  categories  MenuCategory[]
+  menuItems   MenuItem[]
+  orders      Order[]
+  settlements KitchenSettlement[]
+
+  @@map("kitchens")
+}
+
+model KitchenStaff {
+  id        String           @id @default(uuid(7)) @db.Uuid
+  kitchenId String           @map("kitchen_id") @db.Uuid
+  userId    String           @map("user_id") @db.Uuid
+  role      KitchenStaffRole
+  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  kitchen Kitchen @relation(fields: [kitchenId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([kitchenId, userId])
+  @@index([userId])
+  @@map("kitchen_users")
+}
+
+model MenuCategory {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  kitchenId String   @map("kitchen_id") @db.Uuid
+  name      String
+  sortOrder Int      @default(0) @map("sort_order")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  kitchen Kitchen    @relation(fields: [kitchenId], references: [id], onDelete: Cascade)
+  items   MenuItem[]
+
+  @@index([kitchenId, sortOrder])
+  @@map("menu_categories")
+}
+
+model MenuItem {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  kitchenId   String   @map("kitchen_id") @db.Uuid
+  categoryId  String   @map("category_id") @db.Uuid
+  name        String
+  description String?
+  priceKobo   BigInt   @map("price_kobo")
+  imageUrl    String?  @map("image_url")
+  /// Unavailable is a normal, temporary state. It is never expressed by
+  /// deleting the item, because the order history references it. PRODUCT_SPEC
+  /// section 4.
+  isAvailable Boolean  @default(true) @map("is_available")
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  kitchen   Kitchen      @relation(fields: [kitchenId], references: [id], onDelete: Cascade)
+  category  MenuCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  orderItems OrderItem[]
+
+  @@index([kitchenId, isAvailable])
+  @@index([categoryId])
+  @@map("menu_items")
+}
+
+// ---------------------------------------------------------------------------
+// Zones and pricing
+// ---------------------------------------------------------------------------
+
+/// Zone boundaries are GeoJSON in `boundary`. Nothing about the current
+/// delivery fee exists in code or schema: it is a row, and changing it is an
+/// admin edit. Section 5 and PRODUCT_SPEC section 11.
+model DeliveryZone {
+  id                 String             @id @default(uuid(7)) @db.Uuid
+  name               String
+  /// NOT IN SECTION 5. Added because section 11 defines `DELIVERY_DEFAULT_ZONE`
+  /// as "slug of the default zone" and section 5's `delivery_zones` carries no
+  /// slug, so the environment contract had nothing to point at. Reported as a
+  /// spec gap rather than quietly absorbed.
+  slug               String             @unique
+  boundary           Json
+  baseFeeKobo        BigInt             @map("base_fee_kobo")
+  paymentRequirement PaymentRequirement @map("payment_requirement")
+  isActive           Boolean            @default(true) @map("is_active")
+  priority           Int                @default(0)
+  createdAt          DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  feeRules DeliveryFeeRule[]
+
+  @@map("delivery_zones")
+}
+
+/// Distance tiers inside a zone. PRODUCT_SPEC section 11 gives the shape:
+/// 0-3km X, 3-5km Y, 5-8km Z.
+model DeliveryFeeRule {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  zoneId    String   @map("zone_id") @db.Uuid
+  minKm     Decimal  @map("min_km") @db.Decimal(6, 2)
+  maxKm     Decimal  @map("max_km") @db.Decimal(6, 2)
+  feeKobo   BigInt   @map("fee_kobo")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  zone DeliveryZone @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+
+  @@index([zoneId, minKm])
+  @@map("delivery_fee_rules")
+}
+
+// ---------------------------------------------------------------------------
+// Orders
+// ---------------------------------------------------------------------------
+
+model Order {
+  id               String        @id @default(uuid(7)) @db.Uuid
+  orderNumber      String        @unique @map("order_number")
+  customerId       String        @map("customer_id") @db.Uuid
+  kitchenId        String        @map("kitchen_id") @db.Uuid
+  status           OrderStatus   @default(PENDING_CONFIRMATION)
+  /// Frozen at placement. Editing a saved address later must never rewrite an
+  /// order already placed. Section 5, rule 1.
+  addressSnapshot  Json          @map("address_snapshot")
+  subtotalKobo     BigInt        @map("subtotal_kobo")
+  deliveryFeeKobo  BigInt        @map("delivery_fee_kobo")
+  /// Exists and is unused in V1: promotions and discount codes are out of
+  /// scope deliberately. PRODUCT_SPEC section 12.2.
+  discountKobo     BigInt        @default(0) @map("discount_kobo")
+  totalKobo        BigInt        @map("total_kobo")
+  paymentMethod    PaymentMethod @map("payment_method")
+  deliveryNotes    String?       @map("delivery_notes")
+  placedAt         DateTime      @default(now()) @map("placed_at") @db.Timestamptz(3)
+
+  /// One nullable timestamp per lifecycle state, per section 5. `confirmed_at`
+  /// is the one that carries a business rule: no order is confirmed without an
+  /// order event recording who called and when. PRODUCT_SPEC section 9.
+  confirmedAt      DateTime? @map("confirmed_at") @db.Timestamptz(3)
+  kitchenAcceptedAt DateTime? @map("kitchen_accepted_at") @db.Timestamptz(3)
+  preparingAt      DateTime? @map("preparing_at") @db.Timestamptz(3)
+  readyForPickupAt DateTime? @map("ready_for_pickup_at") @db.Timestamptz(3)
+  riderAssignedAt  DateTime? @map("rider_assigned_at") @db.Timestamptz(3)
+  pickedUpAt       DateTime? @map("picked_up_at") @db.Timestamptz(3)
+  outForDeliveryAt DateTime? @map("out_for_delivery_at") @db.Timestamptz(3)
+  deliveredAt      DateTime? @map("delivered_at") @db.Timestamptz(3)
+  customerCancelledAt DateTime? @map("customer_cancelled_at") @db.Timestamptz(3)
+  kitchenRejectedAt DateTime? @map("kitchen_rejected_at") @db.Timestamptz(3)
+  adminCancelledAt DateTime? @map("admin_cancelled_at") @db.Timestamptz(3)
+  deliveryFailedAt DateTime? @map("delivery_failed_at") @db.Timestamptz(3)
+
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  customer   Customer   @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  kitchen    Kitchen    @relation(fields: [kitchenId], references: [id], onDelete: Restrict)
+  items      OrderItem[]
+  events     OrderEvent[]
+  delivery   Delivery?
+  payments   Payment[]
+
+  /// Section 5.2. The third index, the partial one on non-terminal statuses for
+  /// the admin live view, cannot be expressed here: Prisma has no partial-index
+  /// syntax. It is added as raw SQL in the init migration and is flagged in the
+  /// Phase 2 report. Do not assume it exists because it is listed in section 5.2.
+  @@index([status, createdAt])
+  @@index([kitchenId, status])
+  @@index([customerId])
+  @@map("orders")
+}
+
+/// The order as placed. `name_snapshot` and `unit_price_snapshot_kobo` are why
+/// a menu price change never alters an existing order. PRODUCT_SPEC rule 6.
+model OrderItem {
+  id                    String   @id @default(uuid(7)) @db.Uuid
+  orderId               String   @map("order_id") @db.Uuid
+  /// Nullable, and set null on delete: a menu item may be removed while the
+  /// order that referenced it must survive intact on its snapshots.
+  menuItemId            String?  @map("menu_item_id") @db.Uuid
+  nameSnapshot          String   @map("name_snapshot")
+  unitPriceSnapshotKobo BigInt   @map("unit_price_snapshot_kobo")
+  quantity              Int
+  lineTotalKobo         BigInt   @map("line_total_kobo")
+  notes                 String?
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  order    Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItem MenuItem? @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@map("order_items")
+}
+
+/// The record. `orders.status` is a cache of the last event, kept so the admin
+/// live view stays fast; if the two ever disagree, these rows win. Append-only:
+/// nothing edits or deletes an event. Section 5, rule 2, and PRODUCT_SPEC 7.3.
+model OrderEvent {
+  id          String       @id @default(uuid(7)) @db.Uuid
+  orderId     String       @map("order_id") @db.Uuid
+  /// Null on the event that creates the order: there was no previous state.
+  fromStatus  OrderStatus? @map("from_status")
+  toStatus    OrderStatus  @map("to_status")
+  actorUserId String?      @map("actor_user_id") @db.Uuid
+  actorRole   UserRole?    @map("actor_role")
+  reason      String?
+  metadata    Json?
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  actor User? @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([orderId, createdAt])
+  @@map("order_events")
+}
+
+// ---------------------------------------------------------------------------
+// Delivery
+// ---------------------------------------------------------------------------
+
+model Rider {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  userId      String   @unique @map("user_id") @db.Uuid
+  name        String
+  phone       String
+  vehicle     String?
+  isActive    Boolean  @default(true) @map("is_active")
+  isAvailable Boolean  @default(true) @map("is_available")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deliveries      Delivery[]
+  cashCollections CashCollection[]
+  paymentsCollected Payment[] @relation("PaymentCollectedByRider")
+
+  @@map("riders")
+}
+
+/// One delivery per order, hence the unique `order_id`. Section 5.2.
+model Delivery {
+  id                String    @id @default(uuid(7)) @db.Uuid
+  orderId           String    @unique @map("order_id") @db.Uuid
+  riderId           String    @map("rider_id") @db.Uuid
+  assignedAt        DateTime  @default(now()) @map("assigned_at") @db.Timestamptz(3)
+  pickedUpAt        DateTime? @map("picked_up_at") @db.Timestamptz(3)
+  outForDeliveryAt  DateTime? @map("out_for_delivery_at") @db.Timestamptz(3)
+  deliveredAt       DateTime? @map("delivered_at") @db.Timestamptz(3)
+  failedAt          DateTime? @map("failed_at") @db.Timestamptz(3)
+  failureReason     String?   @map("failure_reason")
+  distanceKm        Decimal?  @map("distance_km") @db.Decimal(6, 2)
+  deliveryNotes     String?   @map("delivery_notes")
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  rider Rider @relation(fields: [riderId], references: [id], onDelete: Restrict)
+
+  @@index([riderId, createdAt])
+  @@map("deliveries")
+}
+
+// ---------------------------------------------------------------------------
+// Money
+//
+// Derived and never stored, per section 5: amount_expected = orders.total_kobo,
+// amount_collected = sum(payments.amount_kobo), outstanding = expected minus
+// collected, kitchen_amount = subtotal minus commission, delivery_revenue =
+// delivery_fee_kobo. Nothing below caches any of those.
+// ---------------------------------------------------------------------------
+
+model Payment {
+  id                 String        @id @default(uuid(7)) @db.Uuid
+  orderId            String        @map("order_id") @db.Uuid
+  method             PaymentMethod
+  amountKobo         BigInt        @map("amount_kobo")
+  status             PaymentStatus @default(pending)
+  collectedByRiderId String?       @map("collected_by_rider_id") @db.Uuid
+  collectedAt        DateTime?     @map("collected_at") @db.Timestamptz(3)
+  reconciledAt       DateTime?     @map("reconciled_at") @db.Timestamptz(3)
+  reconciledByUserId String?       @map("reconciled_by_user_id") @db.Uuid
+  createdAt          DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  order            Order  @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  collectedByRider Rider? @relation("PaymentCollectedByRider", fields: [collectedByRiderId], references: [id], onDelete: SetNull)
+  reconciledByUser User?  @relation("PaymentReconciledBy", fields: [reconciledByUserId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@map("payments")
+}
+
+/// Cash the rider holds. The difference between what was collected and what has
+/// been handed over is the outstanding float, and it is meant to be visible on
+/// the admin dashboard rather than discovered at month end. PRODUCT_SPEC 10.3.
+model CashCollection {
+  id               String               @id @default(uuid(7)) @db.Uuid
+  riderId          String               @map("rider_id") @db.Uuid
+  amountKobo       BigInt               @map("amount_kobo")
+  collectedAt      DateTime             @map("collected_at") @db.Timestamptz(3)
+  handedOverAt     DateTime?            @map("handed_over_at") @db.Timestamptz(3)
+  receivedByUserId String?              @map("received_by_user_id") @db.Uuid
+  status           CashCollectionStatus @default(pending)
+  notes            String?
+  createdAt        DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  rider          Rider @relation(fields: [riderId], references: [id], onDelete: Restrict)
+  receivedByUser User? @relation("CashReceivedBy", fields: [receivedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([riderId, status])
+  @@map("cash_collections")
+}
+
+/// One settlement per kitchen per period. `model` is the arrangement, not a
+/// code branch: Model A is the platform owing the kitchen after the customer
+/// pays the rider, Model B is the platform paying upfront. PRODUCT_SPEC 10.2.
+model KitchenSettlement {
+  id             String           @id @default(uuid(7)) @db.Uuid
+  kitchenId      String           @map("kitchen_id") @db.Uuid
+  periodStart    DateTime         @map("period_start") @db.Timestamptz(3)
+  periodEnd      DateTime         @map("period_end") @db.Timestamptz(3)
+  grossKobo      BigInt           @map("gross_kobo")
+  commissionKobo BigInt           @map("commission_kobo")
+  netPayableKobo BigInt           @map("net_payable_kobo")
+  model          SettlementModel
+  status         SettlementStatus @default(pending)
+  paidAt         DateTime?        @map("paid_at") @db.Timestamptz(3)
+  paidByUserId   String?          @map("paid_by_user_id") @db.Uuid
+  reference      String?
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  kitchen    Kitchen @relation(fields: [kitchenId], references: [id], onDelete: Restrict)
+  paidByUser User?   @relation("SettlementPaidBy", fields: [paidByUserId], references: [id], onDelete: SetNull)
+
+  @@index([kitchenId, status])
+  @@map("kitchen_settlements")
 }
