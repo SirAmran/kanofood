@@ -397,8 +397,12 @@ What will need real work later, and is deliberately not built now:
 
 Carried explicitly rather than assumed:
 
-1. **Database and storage providers.** Not yet chosen. Must be settled before
-   Phase 2 and Phase 5 respectively.
+1. **Database and storage providers.** Not yet chosen. **Corrected 2026-10-08:
+   this does not block Phase 2, as this section previously claimed.** Both
+   realistic candidates are PostgreSQL, so the Prisma schema is identical either
+   way and Phase 2 can be written now. The database half only bites at the first
+   migration, and the storage half only at Phase 5. Decide before either of those
+   actually runs.
 2. **Public or private repository.** Also determines whether commits carry the
    `Co-Authored-By: Claude Code` trailer, which is currently parked in Active
    Priorities and conflicts with the standing rule that outbound copy reveals no
