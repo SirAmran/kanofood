@@ -7,6 +7,10 @@ node_modules/
 .next/
 out/
 next-env.d.ts
+# Next 16 writes this on every `next dev`, and re-creates it if it is removed.
+# It is Next's own boilerplate rather than project content, and it regenerates
+# for anyone who boots the app, so tracking it would only add churn.
+apps/web/AGENTS.md
 
 # Build output
 dist/

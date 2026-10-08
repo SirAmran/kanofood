@@ -435,6 +435,13 @@ model Order {
   /// the admin live view, cannot be expressed here: Prisma has no partial-index
   /// syntax. It is added as raw SQL in the init migration and is flagged in the
   /// Phase 2 report. Do not assume it exists because it is listed in section 5.2.
+  ///
+  /// THE DRIFT RISK, and the reason this comment is long: the index is live in
+  /// the database, but this file cannot describe it. So `migrate diff` will
+  /// never reproduce it, and a future `prisma migrate dev` will see an index it
+  /// did not create and generate a migration that DROPS it — silently taking
+  /// out the admin live view's index. That is why migrations here go through
+  /// `migrate diff` then `migrate deploy`, never `migrate dev`.
   @@index([status, createdAt])
   @@index([kitchenId, status])
   @@index([customerId])

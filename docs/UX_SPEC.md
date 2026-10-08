@@ -1,6 +1,6 @@
 # KanoFood - UX Specification
 
-Status: proposed, not yet approved
+Status: approved 2026-10-08.
 Date: 2026-10-06
 Project name is temporary. The public brand is undecided and read from config.
 

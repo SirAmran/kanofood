@@ -1,6 +1,7 @@
 # KanoFood - Architecture
 
-Status: proposed, not yet approved
+Status: approved 2026-10-08. Sections 9 and 14 were corrected 2026-10-09 where
+they still described the storage provider as undecided.
 Date: 2026-10-06
 Project name is temporary. The public brand is undecided and lives in config.
 
@@ -300,9 +301,26 @@ database.
 - A fallback image is served when a kitchen has none.
 - Deletion removes the object, not just the database row.
 
-Provider is undecided and must be confirmed before Phase 5. Netlify Blobs is the
-natural fit given the existing deployment stack. A separate image CDN is a
-possibility if bandwidth on Nigerian mobile networks argues for it.
+Provider is **Supabase Storage**, decided 2026-10-08. This paragraph previously
+said the provider was undecided and that Netlify Blobs was the natural fit; the
+decision went the other way. One `media` bucket with public read rather than
+signed URLs, because menu and kitchen images are anonymous storefront content,
+so a private bucket would add an expiring link per image per page load and hide
+nothing. Bucket-level limits: 5 MB, and JPEG, PNG and WebP only. RLS stays
+enabled on `storage.objects` with exactly one policy — public SELECT scoped to
+`media` — and no write policies at all, so the publishable key cannot write.
+Uploads and deletes are server side only, holding the service role key.
+
+**A UUID in the object path is load-bearing, not cosmetic.** Supabase serves
+public objects through an edge cache, so a deleted or replaced object can keep
+answering at the same URL for a short window. A fresh path per upload sidesteps
+it: `kitchens/<id>/logo.webp`, `menu-items/<id>/<uuid>.webp`. Verified
+2026-10-08, when a deleted object still returned 200 from cache while the
+authenticated read correctly returned 400.
+
+The application half of this list — content validation, re-encoding, thumbnails,
+the fallback image — is Phase 5. The bucket limits already refuse a wrong upload
+before any of that exists.
 
 ## 10. Deployment
 
@@ -397,12 +415,13 @@ What will need real work later, and is deliberately not built now:
 
 Carried explicitly rather than assumed:
 
-1. **Database and storage providers.** Not yet chosen. **Corrected 2026-10-08:
-   this does not block Phase 2, as this section previously claimed.** Both
-   realistic candidates are PostgreSQL, so the Prisma schema is identical either
-   way and Phase 2 can be written now. The database half only bites at the first
-   migration, and the storage half only at Phase 5. Decide before either of those
-   actually runs.
+1. **Database and storage providers.** **Resolved 2026-10-08: Supabase**, over
+   Neon, for both. Neon gives the database only; Supabase answers the pooled
+   Postgres in section 10 and the image storage in section 9 from one account.
+   Project `xnezevjjhgrecpfjcbea`, region `eu-west-1` (Ireland), PostgreSQL
+   17.11. The database is migrated and seeded and the bucket is created and
+   verified. The 2026-10-08 correction that this did not block Phase 2 was
+   right, and Phase 2 is now done.
 2. **Public or private repository.** Also determines whether commits carry the
    `Co-Authored-By: Claude Code` trailer, which is currently parked in Active
    Priorities and conflicts with the standing rule that outbound copy reveals no
@@ -410,3 +429,48 @@ Carried explicitly rather than assumed:
 3. **Public brand.** Undecided by design. Everything reads from config, so this
    blocks nothing.
 4. **Domain name.** Needed before the Play Store work, not before.
+
+## 15. Phase plan
+
+Phases 0 to 4 are the spine. 5 to 8 are the four interfaces. Then notifications,
+Sheets, testing, deployment, Android and iOS. Testing happens at every phase
+boundary, not only at the end.
+
+**Written down 2026-10-09.** Until that date this list existed nowhere: the
+project notes recorded Phases 1 and 2 and one line of prose giving the shape,
+and this document had no phase section at all. Everything from Phase 3 on is
+therefore a reconstruction drawn from sections 4, 6 and 7 and the two sibling
+specifications, put to the project owner and confirmed. It is recorded here so
+"what is next" has a real answer instead of a guess.
+
+0. **Specification.** The three documents in `docs/`.
+1. **Repository structure**, workspaces and tooling. Done.
+2. **Database** — schema, migration, seed and object storage. Done 2026-10-08.
+3. **The domain core, `packages/core`.** The order state machine, pricing and
+   money, per the box under the diagram in section 3. Everything here is pure —
+   no database, no network, no clock — which is what makes the money and
+   lifecycle paths testable without a running system. PRODUCT_SPEC section 12.1
+   requires automated tests on exactly those paths, so the tests ship with the
+   phase rather than after it.
+4. **API and authentication** — sections 6 and 7. The REST surface under
+   `/api/v1`, guest order tokens, and role-based authorisation enforced server
+   side on every request.
+5. **Admin.** Live view, kitchens, menus and image upload.
+6. **Customer.** Browse, cart, guest checkout, tracking.
+7. **Kitchen.** The incoming-order queue, accept and reject, preparation status,
+   menu management.
+8. **Rider.** Today's deliveries, status updates, cash recording.
+9. **Notifications** (section 8), then Google Sheets reporting.
+10. **Deployment**, including the connection-pool check under concurrent load in
+    section 10 and a restore actually performed once.
+11. **Android**, as a Trusted Web Activity over the PWA. Then iOS.
+
+**Why admin is fifth and not eighth.** `docs/UX_SPEC.md` lists the four
+interfaces in the order customer, kitchen, rider, admin, and that order cannot be
+built as written. A kitchen is created by an admin as an operational act, never
+by a deployment, and the seed deliberately creates none — so a customer
+storefront built first has no kitchen and no menu to show. Seeding a demo kitchen
+to work around that would override the product decision rather than serve it.
+Admin therefore comes first of the four, and the customer storefront follows with
+real kitchens behind it. This is a deliberate departure from the document order,
+recorded here rather than made silently.

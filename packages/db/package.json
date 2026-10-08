@@ -14,9 +14,6 @@
     "seed": "node --env-file-if-exists=../../.env prisma/seed.ts",
     "typecheck": "tsc --noEmit"
   },
-  "prisma": {
-    "seed": "npm run seed"
-  },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0"
