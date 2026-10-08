@@ -1,7 +1,16 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "noEmit": true
+    "noEmit": true,
+    // Tests import modules with an explicit `.ts` extension so Node's own test
+    // runner can resolve them without a bundler or a loader. Allowed only
+    // because this project never emits: Next compiles the package from source.
+    "allowImportingTsExtensions": true,
+    // The tests run on Node's own test runner, and npm hoists @types/node to
+    // the workspace root, so it is named here rather than left to automatic
+    // discovery. Nothing else in the package uses a Node global: the domain
+    // code stays free of the platform.
+    "types": ["node"]
   },
   "include": ["src/**/*.ts"]
 }
