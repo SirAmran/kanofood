@@ -1,13 +1,13 @@
 /**
  * Database package.
  *
- * The Prisma client is instantiated once and exported as a singleton. This is
- * not a style preference. Serverless functions plus Postgres is the documented
- * failure mode of this stack: a fresh client per invocation exhausts database
- * connections under load, and Netlify runs each request in its own instance.
- * The pooled connection string and the small per-instance pool both exist to
- * blunt exactly that, and it has to be verified under concurrent load before
- * launch rather than assumed. See docs/ARCHITECTURE.md section 10.
+ * The Prisma client is instantiated once, on first use, and exported as a
+ * singleton. This is not a style preference. Serverless functions plus Postgres
+ * is the documented failure mode of this stack: a fresh client per invocation
+ * exhausts database connections under load, and Netlify runs each request in its
+ * own instance. The pooled connection string and the small per-instance pool
+ * both exist to blunt exactly that, and it has to be verified under concurrent
+ * load before launch rather than assumed. See docs/ARCHITECTURE.md section 10.
  *
  * In development the instance is cached on `globalThis` so a hot reload does
  * not open a new pool on every file save. In production a new instance would be
@@ -55,9 +55,46 @@ function createPrismaClient(): PrismaClient {
   });
 }
 
-export const prisma = globalForPrisma.prisma ?? createPrismaClient();
+/**
+ * The cached client, created on first use.
+ *
+ * Reading the cache before creating is what makes the guarantee above survive:
+ * one client per process, and a hot reload reuses the one already there instead
+ * of opening a second pool.
+ */
+function getPrismaClient(): PrismaClient {
+  const existing = globalForPrisma.prisma;
+  if (existing) return existing;
 
-globalForPrisma.prisma = prisma;
+  const created = createPrismaClient();
+  globalForPrisma.prisma = created;
+  return created;
+}
+
+export const prisma: PrismaClient = new Proxy({} as PrismaClient, {
+  /**
+   * Construct the client on first use, not on import.
+   *
+   * `next build` evaluates every route module to collect its config, so an
+   * eager client here made the build require database credentials it never
+   * used. That fails a fresh clone, and it would put production credentials
+   * into a CI or deploy-preview build for no reason. Nothing about the
+   * singleton guarantee above changes: the client is still created once per
+   * process and cached on `globalThis`, and the first query opens the pool
+   * exactly as before.
+   *
+   * A Proxy rather than a `getPrisma()` function so every existing
+   * `prisma.kitchen.findFirst(...)` call site stays as it is. The receiver is
+   * the real client, not this proxy, and functions are bound to it: Prisma's
+   * methods live on the prototype, so an unbound one would be invoked with
+   * `this` set to the proxy and lose the private state it needs.
+   */
+  get(_target, property) {
+    const client = getPrismaClient();
+    const value = Reflect.get(client, property, client);
+    return typeof value === "function" ? value.bind(client) : value;
+  },
+});
 
 export type { Prisma } from "@prisma/client";
 export * from "@prisma/client";

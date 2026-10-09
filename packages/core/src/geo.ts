@@ -156,3 +156,38 @@ export function isPointInBoundary(geometry: AreaGeometry, point: Point): boolean
   }
   return geometry.coordinates.some((rings) => isPointInPolygon(rings, point));
 }
+
+/** Mean Earth radius in kilometres, the value the haversine formula expects. */
+const EARTH_RADIUS_KM = 6371.0088;
+
+function toRadians(degrees: number): number {
+  return (degrees * Math.PI) / 180;
+}
+
+/**
+ * Great-circle distance in kilometres between two points, by the haversine
+ * formula.
+ *
+ * This is the distance a delivery fee band is measured against, so it is the
+ * distance from the kitchen to the customer rather than from any zone centre.
+ *
+ * It is a straight line over a sphere, not a route. That is a deliberate
+ * approximation: no routing provider is wired up, the bands are coarse (three
+ * of them, kilometres apart), and a straight line errs consistently rather than
+ * varying with traffic. ARCHITECTURE.md section 12 leaves room to replace this
+ * with a real distance when one is available.
+ */
+export function haversineKm(from: Point, to: Point): number {
+  const dLat = toRadians(to.lat - from.lat);
+  const dLng = toRadians(to.lng - from.lng);
+
+  const lat1 = toRadians(from.lat);
+  const lat2 = toRadians(to.lat);
+
+  const a =
+    Math.sin(dLat / 2) ** 2 + Math.sin(dLng / 2) ** 2 * Math.cos(lat1) * Math.cos(lat2);
+
+  // atan2 rather than asin: the asin form loses precision for small distances,
+  // and most deliveries here are a few kilometres.
+  return 2 * EARTH_RADIUS_KM * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}

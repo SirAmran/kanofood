@@ -7,6 +7,13 @@
     "noEmit": true,
     "incremental": true,
     "plugins": [{ "name": "next" }],
+    // `@kanofood/core` ships its TypeScript source rather than a build (see
+    // `transpilePackages` in next.config.ts), and that source imports its own
+    // modules with explicit `.ts` extensions so Node can run the tests without a
+    // loader. Following those imports therefore requires this flag here too: the
+    // setting has to live in every project that compiles that source, not just
+    // in the package's own tsconfig. Safe because this project never emits.
+    "allowImportingTsExtensions": true,
     "paths": {
       "@/*": ["./*"]
     }
