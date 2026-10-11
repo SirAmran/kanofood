@@ -253,7 +253,15 @@ reaches domain code. Invalid input never touches the database.
 ## 7. Authentication and authorisation
 
 - Staff (kitchen, rider, admin) sign in with phone or email plus password.
-- Passwords hashed with bcrypt or argon2id. Never stored, never logged.
+- Passwords hashed with scrypt (`node:crypto`), never stored, never logged.
+  Originally specified as bcrypt or argon2id; changed to scrypt on 2026-10-09
+  with the project owner's agreement. Native bcrypt and argon2id both need a
+  compiler this machine does not have, pure-JS bcrypt is slower than what Node
+  already ships, and scrypt is OpenSSL-native, adds no dependency, and is the
+  next entry on the OWASP Password Storage cheat sheet after the two originally
+  named. `apps/web/lib/auth/password.ts` is the only file that hashes, and the
+  stored value is self-describing (`scrypt$N$r$p$salt$hash`), so a future swap is
+  contained and existing passwords keep verifying.
 - Access token: short-lived JWT, minutes not hours.
 - Refresh token: rotated on every use, stored hashed in `sessions`, revocable.
 - Both delivered as httpOnly, Secure, SameSite cookies.

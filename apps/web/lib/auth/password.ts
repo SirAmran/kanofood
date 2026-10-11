@@ -4,9 +4,12 @@ import { promisify } from "node:util";
 /**
  * Password hashing.
  *
- * **This is a deliberate departure from ARCHITECTURE.md section 7**, which says
- * "bcrypt or argon2id". It uses scrypt instead, and the reason is this machine
- * and this dependency graph rather than a preference:
+ * **scrypt, not bcrypt or argon2id.** Section 7 of ARCHITECTURE.md originally
+ * named those two; that line was changed to name scrypt on 2026-10-09 with the
+ * project owner's agreement, so what follows is now the record of why the
+ * document reads the way it does rather than a departure from it.
+ *
+ * The reason is this machine and this dependency graph rather than a preference:
  *
  * - bcrypt and argon2id both arrive as packages. The native ones need a compiler
  *   this box does not have, and the pure-JavaScript bcrypt is slower than what
@@ -14,12 +17,12 @@ import { promisify } from "node:util";
  * - `node:crypto` includes scrypt, implemented in OpenSSL, so it is native
  *   speed with no install, no build step and no supply-chain surface.
  * - scrypt is memory hard and is the third entry on the OWASP Password Storage
- *   cheat sheet, behind only the two the specification names. It is not a
- *   weaker choice; it is a different member of the same family.
+ *   cheat sheet, behind only the two originally named. It is not a weaker
+ *   choice; it is a different member of the same family.
  *
- * Switching to argon2id later means replacing this file and re-hashing each
- * password on next sign-in. The stored format below carries its own parameters,
- * so verification keeps working across such a change.
+ * Switching to argon2id later means adding a branch here: the stored format
+ * below is self-describing, so both can be verified side by side while existing
+ * passwords are re-hashed on next sign-in.
  *
  * Parameters are stored with the hash rather than assumed, so raising them later
  * does not invalidate existing passwords.
