@@ -15,7 +15,8 @@ import { ApiError, failure, ok } from "./http";
  * unexpected exception can escape as a stack trace.
  */
 
-async function readBody(req: NextRequest): Promise<unknown> {  const text = await req.text();
+async function readBody(req: NextRequest): Promise<unknown> {
+  const text = await req.text();
   if (text.trim() === "") return {};
 
   try {
@@ -68,41 +69,73 @@ function respond(result: unknown): NextResponse {
   return ok(result);
 }
 
-export interface PublicRouteConfig<TBody> {
+/**
+ * The dynamic segments Next resolves from the file path.
+ *
+ * `params` is a promise in this version of Next, so it is awaited before the
+ * handler runs. It is passed alongside the body because a route handler should
+ * not have to re-parse its own URL to find out which row it was pointed at: the
+ * framework already knows, and parsing the path by hand is a way to get it
+ * subtly wrong on a trailing slash.
+ */
+export type RouteParams<TParams> = { readonly params: Promise<TParams> };
+
+type AnyParams = Record<string, string | string[]>;
+
+export interface PublicRouteConfig<TBody, TParams = AnyParams> {
   /** Omitted when the route takes no body, such as a GET. */
   readonly body?: ZodType<TBody>;
-  readonly handler: (input: { req: NextRequest; body: TBody }) => Promise<unknown>;
+  readonly handler: (input: {
+    req: NextRequest;
+    body: TBody;
+    params: TParams;
+  }) => Promise<unknown>;
+}
+
+export interface StaffRouteConfig<TBody, TParams = AnyParams> {
+  /** Omitted means any signed-in staff member. */
+  readonly roles?: readonly StaffRole[];
+  readonly body?: ZodType<TBody>;
+  readonly handler: (input: {
+    req: NextRequest;
+    body: TBody;
+    actor: Actor;
+    params: TParams;
+  }) => Promise<unknown>;
 }
 
 /** A route anyone may call. It still validates before touching domain code. */
-export function publicRoute<TBody>(config: PublicRouteConfig<TBody>) {
-  return async function route(req: NextRequest): Promise<NextResponse> {
+export function publicRoute<TBody, TParams = AnyParams>(config: PublicRouteConfig<TBody, TParams>) {
+  return async function route(
+    req: NextRequest,
+    context: RouteParams<TParams>,
+  ): Promise<NextResponse> {
     try {
+      const params = await context.params;
       const body = config.body ? parseOrThrow(config.body, await readBody(req)) : ({} as TBody);
-      return respond(await config.handler({ req, body }));
+      return respond(await config.handler({ req, body, params }));
     } catch (error) {
       return failure(error);
     }
   };
 }
 
-export interface StaffRouteConfig<TBody> {
-  /** Omitted means any signed-in staff member. */
-  readonly roles?: readonly StaffRole[];
-  readonly body?: ZodType<TBody>;
-  readonly handler: (input: { req: NextRequest; body: TBody; actor: Actor }) => Promise<unknown>;
-}
-
 /**
  * A route only a signed-in staff member may call, optionally restricted to
  * roles. The authorisation check runs before the body is even parsed.
  */
-export function staffRoute<TBody>(config: StaffRouteConfig<TBody>) {
-  return async function route(req: NextRequest): Promise<NextResponse> {
+export function staffRoute<TBody, TParams = AnyParams>(config: StaffRouteConfig<TBody, TParams>) {
+  return async function route(
+    req: NextRequest,
+    context: RouteParams<TParams>,
+  ): Promise<NextResponse> {
     try {
+      // Authenticate and authorise first. Nothing below this line runs for a
+      // caller who is not allowed to be here.
       const actor = await requireActor(req, config.roles);
+      const params = await context.params;
       const body = config.body ? parseOrThrow(config.body, await readBody(req)) : ({} as TBody);
-      return respond(await config.handler({ req, body, actor }));
+      return respond(await config.handler({ req, body, actor, params }));
     } catch (error) {
       return failure(error);
     }

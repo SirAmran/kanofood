@@ -173,3 +173,36 @@ export function lagosDayStartDaysAgo(days: number, now: Date = new Date()): Date
   const start = lagosDayStart(now);
   return new Date(start.getTime() - days * 24 * 60 * 60 * 1000);
 }
+
+/**
+ * Turn a `<input type="date">` value into an instant, in the operator's zone.
+ *
+ * The input yields `YYYY-MM-DD` and nothing else, and a bare date has no zone.
+ * Read as UTC midnight it would be 1am in Kano, so "orders from 5 October" would
+ * start an hour late and miss the last hour of the 4th, which is the busiest hour
+ * a restaurant has. This anchors both edges to Lagos midnight instead: `start` is
+ * 00:00:00.000 and `end` is 23:59:59.999 of that day.
+ *
+ * Returns null for anything that is not a real date, so a hand-edited URL
+ * silently drops the filter rather than querying an invalid range.
+ */
+export function lagosDayFromInput(value: string, edge: "start" | "end"): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+  if (!match) return null;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+
+  const OFFSET_MS = 60 * 60 * 1000;
+  const midnightUtc = Date.UTC(year, month - 1, day);
+
+  // Reject a date the calendar rolled over, such as 2026-02-31.
+  const check = new Date(midnightUtc);
+  if (check.getUTCMonth() !== month - 1 || check.getUTCDate() !== day) return null;
+
+  const start = midnightUtc - OFFSET_MS;
+  return new Date(edge === "start" ? start : start + 24 * 60 * 60 * 1000 - 1);
+}
+

@@ -96,5 +96,14 @@ export const prisma: PrismaClient = new Proxy({} as PrismaClient, {
   },
 });
 
-export type { Prisma } from "@prisma/client";
+/**
+ * `Prisma` is exported as a value, not only as a type.
+ *
+ * The namespace carries runtime members alongside its types, and two of them are
+ * needed: `Prisma.JsonNull` to write a JSON column as SQL NULL, and
+ * `Prisma.InputJsonValue` to type what goes into one. A type-only export would
+ * make both unusable, and it would also shadow the one that `export *` below
+ * already provides.
+ */
+export { Prisma } from "@prisma/client";
 export * from "@prisma/client";
