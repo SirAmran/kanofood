@@ -1,8 +1,9 @@
 /**
  * Design system.
  *
- * Tokens are CSS custom properties in ./tokens.css, imported once in the root
- * layout. Components arrive in Phase 4.
+ * Tokens are CSS custom properties in ./tokens.css and component styles in
+ * ./components.css, both imported once in the root layout. Components live in
+ * ./components.
  *
  * Two rules hold for everything added here: no component hardcodes a raw colour,
  * size or duration (it reads a token), and nothing is styled inline twice.
@@ -10,3 +11,4 @@
  */
 
 export { cn } from "./cn";
+export * from "./components";

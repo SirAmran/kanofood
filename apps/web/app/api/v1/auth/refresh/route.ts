@@ -4,7 +4,7 @@ import { ApiError, failure, ok } from "@/lib/api/http";
 import { clientIp, publicRoute } from "@/lib/api/route";
 import { REFRESH_COOKIE, clearAuthCookies, setAuthCookies } from "@/lib/auth/guard";
 import { rotateSession } from "@/lib/auth/session";
-import { REFRESH_TOKEN_TTL_DAYS, authTokenTtlSeconds } from "@/lib/env";
+import { REFRESH_TOKEN_TTL_DAYS, authTokenTtlSecondsFor } from "@/lib/env";
 
 /**
  * `POST /api/v1/auth/refresh` — trade a refresh token for a new pair.
@@ -49,7 +49,7 @@ export const POST = publicRoute({
     setAuthCookies(
       response,
       tokens,
-      authTokenTtlSeconds(),
+      authTokenTtlSecondsFor(tokens.role),
       REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60,
     );
 

@@ -2,7 +2,9 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  ACTIVE_STATUSES,
   ORDER_STATUSES,
+  ORDER_STATUS_LABELS,
   TERMINAL_STATUSES,
   allowedTransitions,
   assertTransition,
@@ -130,4 +132,38 @@ test("assertTransition refuses an illegal move before anything is written", () =
     /Illegal order transition: PENDING_CONFIRMATION -> PREPARING/,
   );
   assert.throws(() => assertTransition("DELIVERED", "PREPARING"), /Illegal/);
+});
+
+test("every status has a label, and the four interfaces read the same word", () => {
+  // UX_SPEC section 2: the customer, the kitchen, the rider and the admin must
+  // read the same words for the same state. One table is how that stays true.
+  for (const status of ORDER_STATUSES) {
+    const label = ORDER_STATUS_LABELS[status];
+    assert.equal(typeof label, "string", `${status} has no label`);
+    assert.ok(label.trim().length > 0, `${status} has an empty label`);
+  }
+
+  const labels = ORDER_STATUSES.map((status) => ORDER_STATUS_LABELS[status]);
+  assert.equal(new Set(labels).size, labels.length, "two statuses share a label");
+
+  // A label is prose, not the enum: an operator should never be shown
+  // READY_FOR_PICKUP, and a screen reader should never spell out an underscore.
+  for (const label of labels) {
+    assert.ok(!label.includes("_"), `label leaks the enum: ${label}`);
+    assert.notEqual(label, label.toUpperCase(), `label is shouting: ${label}`);
+  }
+});
+
+test("active means not terminal, and the failed ends are not active", () => {
+  assert.equal(ACTIVE_STATUSES.length, ORDER_STATUSES.length - TERMINAL_STATUSES.length);
+  for (const status of ACTIVE_STATUSES) {
+    assert.equal(isTerminal(status), false, `${status} is terminal but listed as active`);
+  }
+  for (const status of TERMINAL_STATUSES) {
+    assert.ok(!ACTIVE_STATUSES.includes(status), `${status} is terminal but listed as active`);
+  }
+  // DELIVERED is terminal and so is every failure, which is the whole point of
+  // the live view: it shows work in flight and nothing that has finished.
+  assert.ok(!ACTIVE_STATUSES.includes("DELIVERED"));
+  assert.ok(!ACTIVE_STATUSES.includes("DELIVERY_FAILED"));
 });

@@ -24,6 +24,15 @@ export interface SessionMeta {
 export interface IssuedTokens {
   readonly accessToken: string;
   readonly refreshToken: string;
+  /**
+   * The role the tokens were issued for.
+   *
+   * Returned so the caller can set the access cookie's `maxAge` from the same
+   * role that picked the token's lifetime. The two are set in different places,
+   * and a cookie outliving its token (or the reverse) is the kind of drift that
+   * only shows up as a mystery sign-out.
+   */
+  readonly role: StaffRole;
 }
 
 function refreshExpiry(): Date {
@@ -52,7 +61,7 @@ export async function startSession(
   });
 
   const accessToken = await signAccessToken({ userId, role, sessionId: session.id });
-  return { accessToken, refreshToken: token };
+  return { accessToken, refreshToken: token, role };
 }
 
 /**
@@ -125,7 +134,7 @@ export async function rotateSession(
     sessionId: created.id,
   });
 
-  return { accessToken, refreshToken: token };
+  return { accessToken, refreshToken: token, role };
 }
 
 /**

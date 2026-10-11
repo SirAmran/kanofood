@@ -6,7 +6,7 @@ import { clientIp, publicRoute } from "@/lib/api/route";
 import { verifyPassword } from "@/lib/auth/password";
 import { setAuthCookies } from "@/lib/auth/guard";
 import { startSession } from "@/lib/auth/session";
-import { REFRESH_TOKEN_TTL_DAYS, authTokenTtlSeconds } from "@/lib/env";
+import { REFRESH_TOKEN_TTL_DAYS, authTokenTtlSecondsFor } from "@/lib/env";
 
 /**
  * `POST /api/v1/auth/sign-in`.
@@ -69,7 +69,7 @@ export const POST = publicRoute({
     setAuthCookies(
       response,
       tokens,
-      authTokenTtlSeconds(),
+      authTokenTtlSecondsFor(tokens.role),
       REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60,
     );
 

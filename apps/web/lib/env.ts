@@ -39,6 +39,24 @@ export function authTokenTtl(): string {
 }
 
 /**
+ * Access token lifetime for an admin, which is deliberately shorter.
+ *
+ * UX_SPEC section 7.1: admin sessions are the most protected of the four. An
+ * admin can cancel a live order, suspend a rider and move money, so the window
+ * in which a stolen access token is useful is the window that matters most. The
+ * refresh token still lasts its full thirty days, so the cost of the shorter
+ * lifetime is a token exchange in the background, not a person signing in again.
+ */
+export function adminTokenTtl(): string {
+  return process.env.ADMIN_TOKEN_TTL?.trim() || "5m";
+}
+
+/** The lifetime that applies to this role. */
+export function authTokenTtlFor(role: string): string {
+  return role === "admin" ? adminTokenTtl() : authTokenTtl();
+}
+
+/**
  * Key material for guest order tokens.
  *
  * Separate from the access token secret on purpose: rotating this invalidates
@@ -58,24 +76,36 @@ export const REFRESH_TOKEN_TTL_DAYS = 30;
 const UNIT_SECONDS: Record<string, number> = { s: 1, m: 60, h: 3600, d: 86400 };
 
 /**
- * The access token lifetime in seconds, for the cookie's `maxAge`.
+ * Turn a configured lifetime into seconds.
  *
- * jose understands duration strings such as `15m` directly, but a cookie needs a
- * number, and the two must agree or the cookie and the token inside it expire at
- * different times. Parsing the one configured value here keeps them in step.
- *
- * An unreadable value falls back to 15 minutes rather than throwing. A typo in
- * a lifetime should not be the reason nobody can sign in, and 15 minutes is the
- * documented intent.
+ * An unreadable value falls back rather than throwing. A typo in a lifetime
+ * should not be the reason nobody can sign in, and the fallback is the
+ * documented intent for that role.
  */
-export function authTokenTtlSeconds(): number {
-  const match = /^(\d+)([smhd])?$/.exec(authTokenTtl().trim());
-  if (!match) return 900;
+function ttlToSeconds(value: string, fallback: number): number {
+  const match = /^(\d+)([smhd])?$/.exec(value.trim());
+  if (!match) return fallback;
 
   const amount = Number(match[1]);
   const unit = match[2] ?? "s";
   const seconds = amount * (UNIT_SECONDS[unit] ?? 1);
 
-  return Number.isSafeInteger(seconds) && seconds > 0 ? seconds : 900;
+  return Number.isSafeInteger(seconds) && seconds > 0 ? seconds : fallback;
+}
+
+/**
+ * The access token lifetime in seconds, for the cookie's `maxAge`.
+ *
+ * jose understands duration strings such as `15m` directly, but a cookie needs a
+ * number, and the two must agree or the cookie and the token inside it expire at
+ * different times. Parsing the one configured value here keeps them in step.
+ */
+export function authTokenTtlSeconds(): number {
+  return ttlToSeconds(authTokenTtl(), 900);
+}
+
+/** The cookie lifetime that applies to this role. Must match the token's own. */
+export function authTokenTtlSecondsFor(role: string): number {
+  return role === "admin" ? ttlToSeconds(adminTokenTtl(), 300) : authTokenTtlSeconds();
 }
 

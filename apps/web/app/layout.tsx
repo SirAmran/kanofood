@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 
 import "@kanofood/ui/tokens.css";
+import "@kanofood/ui/components.css";
 import "./globals.css";
 
 const brand = process.env.BRAND_NAME ?? "KanoFood";

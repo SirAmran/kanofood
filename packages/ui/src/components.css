@@ -1,0 +1,1615 @@
+/* KanoFood component styles.
+ *
+ * One source, like the tokens. Every class here reads a token and nothing else,
+ * so a rebrand or a theme change never touches this file.
+ *
+ * Loaded once, in the root layout, after tokens.css. See ./README.md for the
+ * standard, docs/UX_SPEC.md section 2 for the specification.
+ *
+ * Naming: `kf-` then the block, then `__element` or `--modifier`. Nothing here
+ * targets another component's internals, so a component can be moved without a
+ * stylesheet edit.
+ */
+
+/* ==================================================================== *
+ * Button
+ *
+ * Four variants and three sizes. The primary button is the biggest thing on
+ * the page where it appears (UX_SPEC section 1, principle 3), which is why the
+ * large size exists and why the default is not small.
+ * ==================================================================== */
+
+.kf-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--touch-target);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text);
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-snug);
+  text-align: center;
+  white-space: nowrap;
+  transition:
+    background-color var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard),
+    opacity var(--duration-fast) var(--ease-standard);
+}
+
+.kf-btn:disabled,
+.kf-btn[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.kf-btn--primary {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+.kf-btn--primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.kf-btn--secondary {
+  background: var(--surface-raised);
+  border-color: var(--border-strong);
+}
+.kf-btn--secondary:hover:not(:disabled) {
+  background: var(--surface-sunken);
+}
+
+.kf-btn--ghost {
+  color: var(--text-muted);
+}
+.kf-btn--ghost:hover:not(:disabled) {
+  background: var(--surface-sunken);
+  color: var(--text);
+}
+
+.kf-btn--danger {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-color: transparent;
+}
+.kf-btn--danger:hover:not(:disabled) {
+  background: var(--danger);
+  color: var(--text-inverse);
+}
+
+.kf-btn--sm {
+  min-height: 34px;
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--text-xs);
+}
+
+.kf-btn--lg {
+  min-height: 52px;
+  padding: var(--space-3) var(--space-5);
+  font-size: var(--text-lg);
+  border-radius: var(--radius-lg);
+}
+
+.kf-btn--block {
+  width: 100%;
+}
+
+/* ==================================================================== *
+ * Form controls
+ * ==================================================================== */
+
+.kf-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.kf-label {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  color: var(--text-muted);
+}
+
+.kf-label__required {
+  color: var(--danger);
+  margin-left: var(--space-1);
+}
+
+.kf-hint {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.kf-field__error {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  color: var(--danger);
+}
+
+.kf-input,
+.kf-textarea,
+.kf-select {
+  width: 100%;
+  min-height: var(--touch-target);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  color: var(--text);
+  font-size: var(--text-base);
+  transition:
+    border-color var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-fast) var(--ease-standard);
+}
+
+.kf-textarea {
+  min-height: 96px;
+  resize: vertical;
+  line-height: var(--leading-normal);
+}
+
+.kf-select {
+  appearance: none;
+  padding-right: var(--space-6);
+  /* A chevron drawn in the current text colour, so it themes with the rest. */
+  background-image: linear-gradient(45deg, transparent 50%, currentcolor 50%),
+    linear-gradient(135deg, currentcolor 50%, transparent 50%);
+  background-position:
+    right 18px center,
+    right 13px center;
+  background-size:
+    5px 5px,
+    5px 5px;
+  background-repeat: no-repeat;
+}
+
+.kf-input::placeholder,
+.kf-textarea::placeholder {
+  color: var(--text-muted);
+}
+
+.kf-input:focus-visible,
+.kf-textarea:focus-visible,
+.kf-select:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.kf-input[aria-invalid="true"],
+.kf-textarea[aria-invalid="true"],
+.kf-select[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+.kf-input[aria-invalid="true"]:focus-visible,
+.kf-textarea[aria-invalid="true"]:focus-visible,
+.kf-select[aria-invalid="true"]:focus-visible {
+  box-shadow: 0 0 0 3px var(--danger-soft);
+}
+
+.kf-input:disabled,
+.kf-textarea:disabled,
+.kf-select:disabled {
+  background: var(--surface-sunken);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.kf-checkbox {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  min-height: var(--touch-target);
+  padding: var(--space-1) 0;
+  cursor: pointer;
+}
+
+.kf-checkbox input {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin: 2px 0 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.kf-checkbox__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.kf-checkbox__label {
+  font-size: var(--text-base);
+}
+
+/* ==================================================================== *
+ * Card
+ *
+ * Depth comes from lightness and a soft shadow, not a hard border on every
+ * card. The raised surface against the sunken page is the separation.
+ * ==================================================================== */
+
+.kf-card {
+  background: var(--surface-raised);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elevation-1);
+}
+
+.kf-card--flat {
+  box-shadow: none;
+  border: 1px solid var(--border);
+}
+
+.kf-card--interactive {
+  transition:
+    box-shadow var(--duration-fast) var(--ease-standard),
+    transform var(--duration-fast) var(--ease-standard);
+}
+.kf-card--interactive:hover {
+  box-shadow: var(--elevation-2);
+}
+
+.kf-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--border);
+}
+
+.kf-card__title {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-tight);
+}
+
+.kf-card__body {
+  padding: var(--space-5);
+}
+
+.kf-card__body--flush {
+  padding: 0;
+}
+
+.kf-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  padding: var(--space-4) var(--space-5);
+  border-top: 1px solid var(--border);
+}
+
+/* ==================================================================== *
+ * Badge and status pill
+ *
+ * A status pill carries a tone, never a colour, so the mapping from an order
+ * state to a colour lives in one place in the application and not in the
+ * component.
+ * ==================================================================== */
+
+.kf-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-snug);
+  white-space: nowrap;
+  background: var(--surface-sunken);
+  color: var(--text-muted);
+}
+
+.kf-badge--accent {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.kf-badge--success {
+  background: var(--success-soft);
+  color: var(--success);
+}
+.kf-badge--warning {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+.kf-badge--danger {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.kf-badge--info {
+  background: var(--info-soft);
+  color: var(--info);
+}
+
+/* A live state gets a dot, so "in progress" reads differently from "settled"
+   even before the label is read. */
+.kf-badge__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentcolor;
+}
+
+.kf-badge--pulse .kf-badge__dot {
+  animation: kf-pulse 1.6s var(--ease-standard) infinite;
+}
+
+@keyframes kf-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* ==================================================================== *
+ * Table
+ *
+ * Admin is desktop first and tables become stacked cards on a phone, so the
+ * responsive rule is on the wrapper rather than on each cell.
+ * ==================================================================== */
+
+.kf-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.kf-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-base);
+}
+
+.kf-table th {
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  color: var(--text-muted);
+  white-space: nowrap;
+  border-bottom: 1px solid var(--border);
+}
+
+.kf-table td {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.kf-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.kf-table tbody tr[data-clickable="true"] {
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+.kf-table tbody tr[data-clickable="true"]:hover {
+  background: var(--surface-sunken);
+}
+
+.kf-table__numeric {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.kf-table__muted {
+  color: var(--text-muted);
+}
+
+@media (max-width: 640px) {
+  /* Stacked cards. The header row is hidden and each cell carries its own
+     label, supplied by the page through `data-label`. */
+  .kf-table--stacked thead {
+    display: none;
+  }
+  .kf-table--stacked tr {
+    display: block;
+    padding: var(--space-3) 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .kf-table--stacked td {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-4);
+    padding: var(--space-1) var(--space-4);
+    border-bottom: none;
+  }
+  .kf-table--stacked td::before {
+    content: attr(data-label);
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+  }
+}
+
+/* ==================================================================== *
+ * Metrics
+ * ==================================================================== */
+
+.kf-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--space-3);
+}
+
+.kf-metric {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  box-shadow: var(--elevation-1);
+}
+
+.kf-metric__label {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.kf-metric__value {
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-tight);
+  font-variant-numeric: tabular-nums;
+}
+
+.kf-metric__foot {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* A metric that needs attention says so without shouting. */
+.kf-metric--attention .kf-metric__value {
+  color: var(--warning);
+}
+.kf-metric--stale {
+  opacity: 0.6;
+}
+
+/* ==================================================================== *
+ * Skeleton, spinner and feedback
+ * ==================================================================== */
+
+.kf-skeleton {
+  border-radius: var(--radius-sm);
+  background: linear-gradient(
+    90deg,
+    var(--skeleton-base) 0%,
+    var(--skeleton-sheen) 50%,
+    var(--skeleton-base) 100%
+  );
+  background-size: 200% 100%;
+  animation: kf-shimmer 1.4s linear infinite;
+}
+
+@keyframes kf-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.kf-skeleton--text {
+  height: 1em;
+  margin: 0.25em 0;
+}
+
+.kf-spinner {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  border: 2px solid currentcolor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: kf-spin 0.7s linear infinite;
+}
+
+@keyframes kf-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.kf-alert {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  font-size: var(--text-base);
+  background: var(--surface-sunken);
+  border-left: 3px solid var(--border-strong);
+}
+
+.kf-alert__title {
+  font-weight: var(--weight-semibold);
+}
+
+.kf-alert--success {
+  background: var(--success-soft);
+  border-left-color: var(--success);
+  color: var(--success);
+}
+.kf-alert--warning {
+  background: var(--warning-soft);
+  border-left-color: var(--warning);
+  color: var(--warning);
+}
+.kf-alert--danger {
+  background: var(--danger-soft);
+  border-left-color: var(--danger);
+  color: var(--danger);
+}
+.kf-alert--info {
+  background: var(--info-soft);
+  border-left-color: var(--info);
+  color: var(--info);
+}
+
+.kf-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-7) var(--space-5);
+  text-align: center;
+}
+
+.kf-state__title {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+}
+
+.kf-state__body {
+  max-width: 44ch;
+  color: var(--text-muted);
+}
+
+/* ==================================================================== *
+ * Tabs
+ *
+ * Rendered as links rather than as client state, so a tab is a URL and the
+ * back button works. Nothing here needs JavaScript.
+ * ==================================================================== */
+
+.kf-tabs {
+  display: flex;
+  gap: var(--space-1);
+  overflow-x: auto;
+  border-bottom: 1px solid var(--border);
+}
+
+.kf-tab {
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  color: var(--text-muted);
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  transition: color var(--duration-fast) var(--ease-standard);
+}
+
+.kf-tab:hover {
+  color: var(--text);
+}
+
+.kf-tab[aria-current="page"] {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+/* ==================================================================== *
+ * Timeline
+ *
+ * The order event log. Reads oldest to newest, with the newest emphasised.
+ * ==================================================================== */
+
+.kf-timeline {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.kf-timeline__item {
+  position: relative;
+  padding: 0 0 var(--space-5) var(--space-5);
+  border-left: 2px solid var(--border);
+}
+
+.kf-timeline__item:last-child {
+  padding-bottom: 0;
+  border-left-color: transparent;
+}
+
+.kf-timeline__item::before {
+  content: "";
+  position: absolute;
+  left: -7px;
+  top: 4px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--border-strong);
+}
+
+.kf-timeline__item--current::before {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.kf-timeline__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.kf-timeline__title {
+  font-weight: var(--weight-medium);
+}
+
+.kf-timeline__time {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.kf-timeline__body {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* ==================================================================== *
+ * Modal
+ * ==================================================================== */
+
+.kf-modal {
+  padding: 0;
+  border: none;
+  background: transparent;
+  max-width: min(560px, calc(100vw - 2 * var(--space-4)));
+  width: 100%;
+}
+
+.kf-modal::backdrop {
+  background: var(--surface-overlay);
+}
+
+.kf-modal__panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+  box-shadow: var(--elevation-3);
+}
+
+.kf-modal__title {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-tight);
+}
+
+.kf-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+/* ==================================================================== *
+ * Layout helpers
+ *
+ * Deliberately few. Anything more specific belongs on the screen.
+ * ==================================================================== */
+
+.kf-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.kf-stack--tight {
+  gap: var(--space-2);
+}
+
+.kf-cluster {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.kf-spread {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.kf-muted {
+  color: var(--text-muted);
+}
+
+.kf-numeric {
+  font-variant-numeric: tabular-nums;
+}
+
+.kf-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* One line, ellipsised. For a name in a fixed-width column, where wrapping
+   would change the height of everything beside it. */
+.kf-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* Tabular money, right aligned, so a column of amounts lines up on the
+   decimal and a mis-keyed figure is visible at a glance. */
+.kf-money {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.kf-money--negative {
+  color: var(--danger);
+}
+
+/* ==================================================================== *
+ * Radio and switch
+ *
+ * Radio follows the checkbox so the two read as one control family. The
+ * switch is separate because it is a different thing: a toggle that takes
+ * effect immediately rather than a choice that is submitted.
+ * ==================================================================== */
+
+.kf-radio {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  min-height: var(--touch-target);
+  padding: var(--space-1) 0;
+  cursor: pointer;
+}
+
+.kf-radio input {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin: 2px 0 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.kf-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--touch-target);
+  cursor: pointer;
+}
+
+.kf-switch input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.kf-switch__track {
+  position: relative;
+  flex: none;
+  width: 46px;
+  height: 28px;
+  border-radius: var(--radius-pill);
+  background: var(--border-strong);
+  transition: background-color var(--duration-base) var(--ease-standard);
+}
+
+.kf-switch__thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: var(--elevation-1);
+  transition: transform var(--duration-base) var(--ease-standard);
+}
+
+.kf-switch input:checked + .kf-switch__track {
+  background: var(--accent);
+}
+
+.kf-switch input:checked + .kf-switch__track .kf-switch__thumb {
+  transform: translateX(18px);
+}
+
+.kf-switch input:focus-visible + .kf-switch__track {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.kf-switch input:disabled + .kf-switch__track {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ==================================================================== *
+ * List row
+ *
+ * The generic repeating row: a leading slot, a body, a trailing slot. Used
+ * for the live queue, the rider list, the menu and the event timeline.
+ * ==================================================================== */
+
+.kf-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.kf-list__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
+.kf-list__row:last-child {
+  border-bottom: none;
+}
+
+.kf-list__row--interactive:hover {
+  background: var(--surface-sunken);
+}
+
+.kf-list__body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.kf-list__title {
+  font-weight: var(--weight-medium);
+  overflow-wrap: anywhere;
+}
+
+.kf-list__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.kf-list__trailing {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* ==================================================================== *
+ * Section and page headers
+ * ==================================================================== */
+
+.kf-page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  padding-bottom: var(--space-4);
+}
+
+.kf-page-header__title {
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--leading-tight);
+}
+
+.kf-page-header__sub {
+  margin-top: var(--space-1);
+  color: var(--text-muted);
+}
+
+.kf-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.kf-section-header__title {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-tight);
+}
+
+.kf-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+  gap: var(--space-3);
+}
+
+.kf-grid--wide {
+  grid-template-columns: repeat(auto-fit, minmax(min(360px, 100%), 1fr));
+}
+
+/* A two-pane layout for the desktop-first operational screens: a list that
+   scrolls independently beside a detail pane. Collapses to one column. */
+.kf-split {
+  display: grid;
+  grid-template-columns: minmax(0, 22rem) minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+
+@media (max-width: 1024px) {
+  .kf-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ==================================================================== *
+ * Definition rows
+ *
+ * A label and a value, for order and settlement detail. Uses a grid rather
+ * than a table because these are not tabular data.
+ * ==================================================================== */
+
+.kf-dl {
+  display: grid;
+  grid-template-columns: minmax(0, 12rem) minmax(0, 1fr);
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+}
+
+.kf-dl dt {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  padding-top: 2px;
+}
+
+.kf-dl dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+  .kf-dl {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0 0;
+  }
+  .kf-dl dt {
+    margin-top: var(--space-3);
+  }
+  .kf-dl dt:first-of-type {
+    margin-top: 0;
+  }
+}
+
+/* ==================================================================== *
+ * Price row
+ * ==================================================================== */
+
+.kf-price-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-1) 0;
+}
+
+.kf-price-row__label {
+  color: var(--text-muted);
+}
+
+.kf-price-row--total {
+  padding-top: var(--space-3);
+  margin-top: var(--space-2);
+  border-top: 1px solid var(--border);
+}
+
+.kf-price-row--total .kf-price-row__label {
+  color: var(--text);
+  font-weight: var(--weight-medium);
+}
+
+.kf-price-row--total .kf-money {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-tight);
+}
+
+/* ==================================================================== *
+ * Quantity stepper
+ * ==================================================================== */
+
+.kf-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+}
+
+.kf-stepper__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text);
+  font-size: var(--text-lg);
+  line-height: 1;
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
+.kf-stepper__btn:hover:not(:disabled) {
+  background: var(--surface-sunken);
+}
+
+.kf-stepper__btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* A text box wearing no box. It has to be a real input so a person can type a
+   number rather than tapping to it, so the browser chrome is reset here rather
+   than left to look like a field dropped into the pill. */
+.kf-stepper__value {
+  width: 3ch;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--weight-medium);
+}
+
+.kf-stepper__value:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* ==================================================================== *
+ * Avatar and media
+ * ==================================================================== */
+
+.kf-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--surface-sunken);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  overflow: hidden;
+}
+
+.kf-avatar--lg {
+  width: 56px;
+  height: 56px;
+  font-size: var(--text-base);
+}
+
+.kf-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* A fixed aspect box, so nothing shifts when an image arrives. The surface
+   behind the image is the placeholder; the image fades in over it. */
+.kf-media {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+}
+
+.kf-media > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.kf-media--square {
+  aspect-ratio: 1;
+}
+.kf-media--wide {
+  aspect-ratio: 16 / 9;
+}
+.kf-media--thumb {
+  width: 56px;
+  aspect-ratio: 1;
+  flex: none;
+}
+
+/* ==================================================================== *
+ * Sticky action bar
+ *
+ * On a phone the action a screen exists for stays within reach. It floats
+ * over the content rather than pushing it, and clears the home indicator.
+ * ==================================================================== */
+
+.kf-sticky-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: var(--z-sticky);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-top: var(--space-4);
+  padding: var(--space-3) var(--gutter) calc(var(--space-3) + var(--safe-bottom));
+  background: var(--surface-raised);
+  border-top: 1px solid var(--border);
+}
+
+.kf-sticky-bar--spread {
+  justify-content: space-between;
+}
+
+/* ==================================================================== *
+ * Modal sheet
+ *
+ * The bottom sheet is the modal on a phone, where a thumb reaches the
+ * bottom of the screen and not the middle of it.
+ * ==================================================================== */
+
+.kf-sheet {
+  margin: auto auto 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  width: 100%;
+  max-width: min(640px, 100vw);
+}
+
+.kf-sheet::backdrop {
+  background: var(--surface-overlay);
+}
+
+.kf-sheet__panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-height: 88dvh;
+  overflow-y: auto;
+  padding: var(--space-5) var(--gutter) calc(var(--space-5) + var(--safe-bottom));
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background: var(--surface-raised);
+  box-shadow: var(--elevation-3);
+}
+
+.kf-sheet__grabber {
+  align-self: center;
+  width: 40px;
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--border-strong);
+}
+
+@media (min-width: 641px) {
+  .kf-sheet {
+    margin: auto;
+    --radius-top: 0;
+  }
+  .kf-sheet__panel {
+    border-radius: var(--radius-lg);
+    padding: var(--space-5);
+  }
+  .kf-sheet__grabber {
+    display: none;
+  }
+}
+
+/* ==================================================================== *
+ * Toast
+ * ==================================================================== */
+
+.kf-toaster {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--space-5) + var(--safe-bottom));
+  transform: translateX(-50%);
+  z-index: var(--z-toast);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: min(420px, calc(100vw - 2 * var(--space-4)));
+  pointer-events: none;
+}
+
+.kf-toast {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--text);
+  color: var(--surface);
+  box-shadow: var(--elevation-3);
+  font-size: var(--text-base);
+  pointer-events: auto;
+  animation: kf-toast-in var(--duration-base) var(--ease-standard);
+}
+
+.kf-toast--danger {
+  background: var(--danger);
+  color: var(--text-inverse);
+}
+
+/* A toast paints its own background, so its dismiss control cannot use a button
+   variant: those carry the page's text colour and would be invisible here. It
+   inherits the toast's colour instead. */
+.kf-toast__action {
+  margin-left: auto;
+  flex: none;
+  padding: var(--space-1);
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+  opacity: 0.75;
+}
+
+.kf-toast__action:hover {
+  opacity: 1;
+}
+
+@keyframes kf-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ==================================================================== *
+ * Filter bar
+ *
+ * A row of controls above a list. It wraps rather than scrolling, because a
+ * horizontal scroller on a filter a person needs is a small cruelty.
+ * ==================================================================== */
+
+.kf-filters {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.kf-filters .kf-field {
+  min-width: 10rem;
+}
+
+/* ==================================================================== *
+ * Upload
+ * ==================================================================== */
+
+.kf-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-5);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color var(--duration-fast) var(--ease-standard);
+}
+
+.kf-drop:hover {
+  border-color: var(--accent);
+}
+
+.kf-drop input[type="file"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.kf-drop--busy {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.kf-progress {
+  width: 100%;
+  height: 6px;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--surface-sunken);
+}
+
+.kf-progress__bar {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  transition: width var(--duration-base) var(--ease-standard);
+}
+
+/* ==================================================================== *
+ * Pagination
+ * ==================================================================== */
+
+.kf-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* ==================================================================== *
+ * Admin shell
+ *
+ * Desktop first, per UX_SPEC section 3. The sidebar collapses to a
+ * horizontal nav on a phone, which is what an operator checking an order
+ * from outside the office actually needs.
+ * ==================================================================== */
+
+.kf-shell {
+  display: grid;
+  grid-template-columns: 15rem minmax(0, 1fr);
+  min-height: 100dvh;
+  background: var(--surface-sunken);
+}
+
+.kf-shell__sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-5) var(--space-4);
+  background: var(--surface-raised);
+  border-right: 1px solid var(--border);
+}
+
+.kf-shell__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-tight);
+}
+
+.kf-shell__mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: var(--accent-text);
+  font-size: var(--text-base);
+}
+
+.kf-shell__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.kf-shell__link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: var(--text-base);
+  transition:
+    background-color var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
+}
+
+.kf-shell__link:hover {
+  background: var(--surface-sunken);
+  color: var(--text);
+}
+
+.kf-shell__link[aria-current="page"] {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: var(--weight-medium);
+}
+
+.kf-shell__group {
+  padding: var(--space-3) var(--space-3) var(--space-1);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  color: var(--text-muted);
+}
+
+.kf-shell__main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.kf-shell__topbar {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-header);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  padding: var(--space-3) var(--gutter);
+  background: color-mix(in oklab, var(--surface-raised), transparent 8%);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+}
+
+.kf-shell__content {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: var(--space-5) var(--gutter) var(--space-7);
+}
+
+.kf-shell__footer {
+  padding: var(--space-3) var(--gutter);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+@media (max-width: 1024px) {
+  .kf-shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .kf-shell__sidebar {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-3);
+    overflow-x: auto;
+    position: sticky;
+    top: 0;
+    z-index: var(--z-header);
+    padding: var(--space-2) var(--space-3);
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+  .kf-shell__nav {
+    flex-direction: row;
+    gap: var(--space-1);
+  }
+  .kf-shell__link {
+    white-space: nowrap;
+  }
+  .kf-shell__group {
+    display: none;
+  }
+  .kf-shell__brand-name {
+    display: none;
+  }
+  .kf-shell__footer {
+    display: none;
+  }
+}
+
+/* ==================================================================== *
+ * Sign-in
+ * ==================================================================== */
+
+.kf-signin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  padding: var(--space-5) var(--gutter);
+  background: var(--surface-sunken);
+}
+
+.kf-signin__panel {
+  width: 100%;
+  max-width: 26rem;
+}
+
+/* ==================================================================== *
+ * Zone list
+ *
+ * Zones are edited as rows of numbers. The map is drawn with plain SVG
+ * rather than a tile provider: no API key, no per-load billing, and it
+ * works on a connection too poor to fetch tiles.
+ * ==================================================================== */
+
+.kf-map {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.kf-map svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.kf-map__zone {
+  fill: var(--accent-soft);
+  stroke: var(--accent);
+  stroke-width: 0.4;
+  vector-effect: non-scaling-stroke;
+}
+
+.kf-map__zone--inactive {
+  fill: var(--surface-sunken);
+  stroke: var(--border-strong);
+  stroke-dasharray: 2 2;
+}
+

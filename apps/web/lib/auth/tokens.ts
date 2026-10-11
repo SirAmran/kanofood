@@ -2,7 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 
 import { SignJWT, jwtVerify } from "jose";
 
-import { ORDER_TOKEN_TTL, authJwtSecret, authTokenTtl, orderTokenSecret } from "../env";
+import { ORDER_TOKEN_TTL, authJwtSecret, authTokenTtlFor, orderTokenSecret } from "../env";
 
 /**
  * The three token kinds this system issues, and why they are three rather than
@@ -32,14 +32,22 @@ export interface AccessTokenClaims {
   readonly sessionId: string;
 }
 
-export async function signAccessToken(claims: AccessTokenClaims): Promise<string> {
+/**
+ * Sign an access token.
+ *
+ * The lifetime is a parameter rather than a constant read here, because it
+ * depends on the role and this function already knows the role. An admin gets a
+ * shorter one than everyone else: UX_SPEC section 7.1, and the reason is written
+ * up in `authTokenTtlFor`.
+ */
+export async function signAccessToken(claims: AccessTokenClaims, ttl?: string): Promise<string> {
   return new SignJWT({ role: claims.role, sid: claims.sessionId })
     .setProtectedHeader({ alg: "HS256", typ: "JWT" })
     .setSubject(claims.userId)
     .setIssuer(STAFF_ISSUER)
     .setAudience(STAFF_AUDIENCE)
     .setIssuedAt()
-    .setExpirationTime(authTokenTtl())
+    .setExpirationTime(ttl ?? authTokenTtlFor(claims.role))
     .sign(authJwtSecret());
 }
 

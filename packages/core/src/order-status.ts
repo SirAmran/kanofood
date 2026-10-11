@@ -74,6 +74,40 @@ const TRANSITIONS: Readonly<Record<OrderStatus, readonly OrderStatus[]>> = {
   DELIVERY_FAILED: [],
 };
 
+/**
+ * The word for each state, so a rider and an admin read the same one.
+ *
+ * UX_SPEC section 2 requires a status pill to carry "a consistent colour and
+ * label everywhere it appears". The colour is presentation and lives in the
+ * design system; the word is a product decision, so it lives here beside the
+ * table that defines the states, exactly as the cancellation reason labels live
+ * beside their values in `reasons.ts`. Four screens read this: the customer
+ * timeline, the kitchen queue, the rider list and the admin console.
+ *
+ * Typed as a total `Record`, so adding a status without a label is a compile
+ * error rather than a blank pill at three in the morning.
+ */
+export const ORDER_STATUS_LABELS: Readonly<Record<OrderStatus, string>> = {
+  PENDING_CONFIRMATION: "Awaiting confirmation",
+  CONFIRMED: "Confirmed",
+  KITCHEN_ACCEPTED: "Accepted by kitchen",
+  PREPARING: "Preparing",
+  READY_FOR_PICKUP: "Ready for pickup",
+  RIDER_ASSIGNED: "Rider assigned",
+  PICKED_UP: "Picked up",
+  OUT_FOR_DELIVERY: "Out for delivery",
+  DELIVERED: "Delivered",
+  CUSTOMER_CANCELLED: "Cancelled by customer",
+  KITCHEN_REJECTED: "Rejected by kitchen",
+  ADMIN_CANCELLED: "Cancelled by admin",
+  DELIVERY_FAILED: "Delivery failed",
+};
+
+/** Every state that is still moving, which is what the admin live view shows. */
+export const ACTIVE_STATUSES = ORDER_STATUSES.filter(
+  (status) => !TERMINAL_SET.has(status),
+) as readonly OrderStatus[];
+
 export function isTerminal(status: OrderStatus): boolean {
   return TERMINAL_SET.has(status);
 }

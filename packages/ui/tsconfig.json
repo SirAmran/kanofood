@@ -1,7 +1,12 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "noEmit": true
+    "noEmit": true,
+    // The components are React, and four of them touch the DOM (`<dialog>`,
+    // `XMLHttpRequest`, `FileList`). Neither the DOM lib nor JSX is in the base
+    // config, which is shared with `@kanofood/core` where neither belongs.
+    "lib": ["DOM", "DOM.Iterable", "ES2022"],
+    "jsx": "react-jsx"
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"]
 }
