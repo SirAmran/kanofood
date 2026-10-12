@@ -73,6 +73,26 @@ export const ORDER_TOKEN_TTL = "30d";
 /** How long a refresh token stays valid. */
 export const REFRESH_TOKEN_TTL_DAYS = 30;
 
+/**
+ * Object storage. ARCHITECTURE.md section 9, decided 2026-10-08.
+ *
+ * `STORAGE_KEY` is the Supabase project URL and `STORAGE_SECRET` is the
+ * service_role key. The secret is server side only: it is held here, read by
+ * `lib/storage.ts`, and never sent to a browser or given write access to
+ * `storage.objects`. The publishable key cannot write anything, by design.
+ */
+export function storageProvider(): string {
+  return process.env.STORAGE_PROVIDER?.trim().toLowerCase() || "supabase";
+}
+
+export function storageProjectUrl(): string {
+  return required("STORAGE_KEY").replace(/\/+$/, "");
+}
+
+export function storageServiceKey(): string {
+  return required("STORAGE_SECRET");
+}
+
 const UNIT_SECONDS: Record<string, number> = { s: 1, m: 60, h: 3600, d: 86400 };
 
 /**

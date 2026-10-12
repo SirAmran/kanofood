@@ -15,15 +15,20 @@ import { cn } from "../cn";
  * connection is exactly the case where a progress bar is the difference between
  * waiting and giving up. The request is abortable for the same reason.
  *
- * The endpoint answers with the stored URL, which is what the caller needs: the
- * server has already validated, re-encoded, resized and thumbnailed the file by
- * the time it replies, per ARCHITECTURE section 9.
+ * The endpoint answers in the application's standard envelope, `{ok, data}`, and
+ * the server has already validated, re-encoded, resized and thumbnailed the file
+ * by the time it replies, per ARCHITECTURE section 9. This component does not
+ * decide whether an upload is allowed; it posts the bytes and reports what came
+ * back.
  */
 
 export interface UploadResult {
   readonly url: string;
   /** Present when the server produced one. */
-  readonly thumbnailUrl?: string;
+  readonly thumbUrl?: string;
+  readonly width?: number;
+  readonly height?: number;
+  readonly bytes?: number;
 }
 
 export interface UploadProps {
@@ -32,11 +37,11 @@ export interface UploadProps {
   /** Called once the server has stored the file and answered with its URL. */
   readonly onUploaded: (result: UploadResult) => void;
   readonly onError?: (message: string) => void;
+  /** Extra form fields sent alongside the file: a purpose, an owner id. */
+  readonly fields?: Readonly<Record<string, string>>;
   readonly accept?: string;
   readonly label?: string;
   readonly hint?: ReactNode;
-  /** Sent as `label` alongside the file, for the storage key. */
-  readonly purpose?: string;
   readonly disabled?: boolean;
   readonly className?: string;
 }
@@ -46,14 +51,23 @@ interface ProgressState {
   readonly total: number;
 }
 
+/** What the upload route returns inside the envelope. */
+interface UploadPayload {
+  readonly url?: string;
+  readonly thumbUrl?: string;
+  readonly width?: number;
+  readonly height?: number;
+  readonly bytes?: number;
+}
+
 export function Upload({
   endpoint,
   onUploaded,
   onError,
+  fields,
   accept = "image/png,image/jpeg,image/webp",
   label = "Upload an image",
   hint,
-  purpose,
   disabled = false,
   className,
 }: UploadProps) {
@@ -77,7 +91,7 @@ export function Upload({
 
       const body = new FormData();
       body.append("file", file);
-      if (purpose) body.append("purpose", purpose);
+      for (const [name, value] of Object.entries(fields ?? {})) body.append(name, value);
 
       const request = new XMLHttpRequest();
       requestRef.current = request;
@@ -91,15 +105,25 @@ export function Upload({
       });
 
       request.addEventListener("load", () => {
-        const response = request.response as { url?: string; thumbnailUrl?: string; error?: string } | null;
+        const envelope = request.response as
+          | { ok?: boolean; data?: UploadPayload; error?: { message?: string } }
+          | null;
 
-        if (request.status >= 200 && request.status < 300 && response?.url) {
-          onUploaded({ url: response.url, thumbnailUrl: response.thumbnailUrl });
+        const payload = envelope?.data;
+
+        if (request.status >= 200 && request.status < 300 && envelope?.ok && payload?.url) {
+          onUploaded({
+            url: payload.url,
+            ...(payload.thumbUrl !== undefined ? { thumbUrl: payload.thumbUrl } : {}),
+            ...(payload.width !== undefined ? { width: payload.width } : {}),
+            ...(payload.height !== undefined ? { height: payload.height } : {}),
+            ...(payload.bytes !== undefined ? { bytes: payload.bytes } : {}),
+          });
           reset();
           return;
         }
 
-        onError?.(response?.error ?? "That upload did not go through.");
+        onError?.(envelope?.error?.message ?? "That upload did not go through.");
         reset();
       });
 
@@ -112,7 +136,7 @@ export function Upload({
 
       request.send(body);
     },
-    [endpoint, onError, onUploaded, purpose, reset],
+    [endpoint, fields, onError, onUploaded, reset],
   );
 
   const handleFiles = useCallback(
