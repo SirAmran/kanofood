@@ -2,6 +2,8 @@ import { ACTIVE_STATUSES, ORDER_STATUS_LABELS, isTerminal } from "@kanofood/core
 import type { OrderStatus } from "@kanofood/core";
 import type { Tone } from "@kanofood/ui";
 
+import type { RiderState } from "./network";
+
 /**
  * How an order state looks, in one place.
  *
@@ -57,6 +59,28 @@ export function isLive(status: OrderStatus): boolean {
 }
 
 export { isTerminal };
+
+/**
+ * How a rider's working state looks.
+ *
+ * The state itself is derived in `network.ts` from live orders; only the colour
+ * lives here, for the same reason the order tones do. A rider who is on a
+ * delivery earns the accent used for everything in flight, and a suspended one
+ * is the only red, because it is the only one somebody has to act on.
+ *
+ * The import is type-only on purpose: it keeps a presentation helper from
+ * pulling the database client in behind it.
+ */
+const RIDER_STATE_TONES: Readonly<Record<RiderState, Tone>> = {
+  available: "success",
+  "on a delivery": "accent",
+  "off-shift": "neutral",
+  suspended: "danger",
+};
+
+export function toneForRiderState(state: RiderState): Tone {
+  return RIDER_STATE_TONES[state];
+}
 
 /**
  * The forward path, for drawing progress. Every order that is not terminated
