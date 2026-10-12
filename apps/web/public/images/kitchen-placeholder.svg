@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="No kitchen image">
+  <rect width="400" height="400" fill="#f1efec" />
+  <g fill="none" stroke="#bdb7ae" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M120 250h160" />
+    <path d="M140 250v-40a60 60 0 0 1 120 0v40" />
+    <path d="M200 130v-20" />
+  </g>
+</svg>
