@@ -112,6 +112,46 @@ export function isTerminal(status: OrderStatus): boolean {
   return TERMINAL_SET.has(status);
 }
 
+const STATUS_SET: ReadonlySet<string> = new Set(ORDER_STATUSES);
+
+/**
+ * Whether a string that came from outside is one of ours.
+ *
+ * A status read from a column that is typed `String` in the schema, or from a
+ * payload, is not an `OrderStatus` until it has been checked, and casting it is
+ * how a label lookup returns `undefined` in production instead of in a test.
+ * Narrow with this, then index the label table safely.
+ */
+export function isOrderStatus(value: unknown): value is OrderStatus {
+  return typeof value === "string" && STATUS_SET.has(value);
+}
+
+/**
+ * The four ways an order ends without the customer getting food.
+ *
+ * Not the same set as the terminal statuses, and the difference is the whole
+ * point: DELIVERED is terminal too, but it is the one ending that earned
+ * anything. Every revenue figure in the admin interface is "everything except
+ * these four", and every failure screen is exactly these four.
+ *
+ * It lives here rather than in the admin interface because the admin interface
+ * asks the question in five places, and five copies of a four-string list is
+ * five chances for one of them to be updated and the others not.
+ */
+export const LOST_STATUSES = [
+  "CUSTOMER_CANCELLED",
+  "KITCHEN_REJECTED",
+  "ADMIN_CANCELLED",
+  "DELIVERY_FAILED",
+] as const satisfies readonly OrderStatus[];
+
+const LOST_SET: ReadonlySet<OrderStatus> = new Set(LOST_STATUSES);
+
+/** Whether an order ended without a delivery. */
+export function isLost(status: OrderStatus): boolean {
+  return LOST_SET.has(status);
+}
+
 /** Every status this one may move to. Empty for a terminal status. */
 export function allowedTransitions(from: OrderStatus): readonly OrderStatus[] {
   return TRANSITIONS[from];
