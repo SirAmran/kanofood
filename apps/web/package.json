@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "create-admin": "node --env-file-if-exists=../../.env scripts/create-admin.ts"
   },
   "dependencies": {
     "@kanofood/core": "*",
