@@ -70,6 +70,13 @@ export default async function KitchensPage() {
               { name: "addressText", label: "Address", type: "text" },
               { name: "landmark", label: "Landmark", type: "text", hint: "How a rider finds it." },
               { name: "prepTimeMinutes", label: "Preparation time (minutes)", type: "number" },
+              {
+                name: "lat",
+                label: "Latitude",
+                type: "number",
+                hint: "The pin delivery fees are measured from. Both coordinates or neither.",
+              },
+              { name: "lng", label: "Longitude", type: "number", hint: "Example: 8.5167" },
               { name: "description", label: "Description", type: "textarea", rows: 3 },
             ]}
           />

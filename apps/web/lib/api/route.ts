@@ -26,6 +26,20 @@ async function readBody(req: NextRequest): Promise<unknown> {
   }
 }
 
+/**
+ * The query string, flattened to a plain object.
+ *
+ * A repeated key collapses to its last value. That is the right answer for every
+ * parameter this API takes, all of which are scalars, and it is worth being
+ * explicit about because the alternative reading, "the caller asked for both",
+ * is not something any handler here could act on. A `?sort=a&sort=b` is a client
+ * bug and it resolves rather than failing, which is what a filter that is merely
+ * redundant should do.
+ */
+function readQuery(req: NextRequest): Record<string, string> {
+  return Object.fromEntries(req.nextUrl.searchParams.entries());
+}
+
 /** Field-level detail, so a form can highlight the offending input. */
 function describe(error: { issues: readonly { path: readonly PropertyKey[]; message: string }[] }) {
   return {
@@ -82,30 +96,43 @@ export type RouteParams<TParams> = { readonly params: Promise<TParams> };
 
 type AnyParams = Record<string, string | string[]>;
 
-export interface PublicRouteConfig<TBody, TParams = AnyParams> {
+export interface PublicRouteConfig<TBody, TQuery, TParams = AnyParams> {
   /** Omitted when the route takes no body, such as a GET. */
   readonly body?: ZodType<TBody>;
+  /**
+   * A GET's parameters. Validated by the same pipeline as a body and for the
+   * same reason: a query string is caller-controlled input, and a browse screen
+   * that passes a latitude through it must be checked before a query is built
+   * from it, not after. A route with neither passes `{}` and a schema of `{}`.
+   */
+  readonly query?: ZodType<TQuery>;
   readonly handler: (input: {
     req: NextRequest;
     body: TBody;
+    query: TQuery;
     params: TParams;
   }) => Promise<unknown>;
 }
 
-export interface StaffRouteConfig<TBody, TParams = AnyParams> {
+export interface StaffRouteConfig<TBody, TQuery, TParams = AnyParams> {
   /** Omitted means any signed-in staff member. */
   readonly roles?: readonly StaffRole[];
   readonly body?: ZodType<TBody>;
+  /** See `PublicRouteConfig.query`. Admin list screens filter through it too. */
+  readonly query?: ZodType<TQuery>;
   readonly handler: (input: {
     req: NextRequest;
     body: TBody;
+    query: TQuery;
     actor: Actor;
     params: TParams;
   }) => Promise<unknown>;
 }
 
 /** A route anyone may call. It still validates before touching domain code. */
-export function publicRoute<TBody, TParams = AnyParams>(config: PublicRouteConfig<TBody, TParams>) {
+export function publicRoute<TBody, TQuery = Record<string, never>, TParams = AnyParams>(
+  config: PublicRouteConfig<TBody, TQuery, TParams>,
+) {
   return async function route(
     req: NextRequest,
     context: RouteParams<TParams>,
@@ -113,7 +140,10 @@ export function publicRoute<TBody, TParams = AnyParams>(config: PublicRouteConfi
     try {
       const params = await context.params;
       const body = config.body ? parseOrThrow(config.body, await readBody(req)) : ({} as TBody);
-      return respond(await config.handler({ req, body, params }));
+      const query = config.query
+        ? parseOrThrow(config.query, readQuery(req))
+        : ({} as TQuery);
+      return respond(await config.handler({ req, body, query, params }));
     } catch (error) {
       return failure(error);
     }
@@ -124,7 +154,9 @@ export function publicRoute<TBody, TParams = AnyParams>(config: PublicRouteConfi
  * A route only a signed-in staff member may call, optionally restricted to
  * roles. The authorisation check runs before the body is even parsed.
  */
-export function staffRoute<TBody, TParams = AnyParams>(config: StaffRouteConfig<TBody, TParams>) {
+export function staffRoute<TBody, TQuery = Record<string, never>, TParams = AnyParams>(
+  config: StaffRouteConfig<TBody, TQuery, TParams>,
+) {
   return async function route(
     req: NextRequest,
     context: RouteParams<TParams>,
@@ -135,7 +167,10 @@ export function staffRoute<TBody, TParams = AnyParams>(config: StaffRouteConfig<
       const actor = await requireActor(req, config.roles);
       const params = await context.params;
       const body = config.body ? parseOrThrow(config.body, await readBody(req)) : ({} as TBody);
-      return respond(await config.handler({ req, body, actor, params }));
+      const query = config.query
+        ? parseOrThrow(config.query, readQuery(req))
+        : ({} as TQuery);
+      return respond(await config.handler({ req, body, query, actor, params }));
     } catch (error) {
       return failure(error);
     }

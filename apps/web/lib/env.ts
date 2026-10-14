@@ -93,6 +93,36 @@ export function storageServiceKey(): string {
   return required("STORAGE_SECRET");
 }
 
+/**
+ * The number customers call, and the one the storefront prints.
+ *
+ * UX_SPEC asks for a platform contact on four screens: the delivery strip on
+ * home (4.1), the fallback when a kitchen's page fails (4.4), the refusal when a
+ * point is outside every zone (4.8), and help and contact (4.13). It is the
+ * answer for everything the platform has not automated yet, and at launch that
+ * is most things: confirmation is a phone call, so a customer who cannot find
+ * this number cannot order.
+ *
+ * Optional, and it returns `null` rather than throwing. A missing support number
+ * must not be the reason the storefront fails to render, so each screen hides
+ * the line instead. It is also the reason this is not in `.env` yet: the number
+ * has not been chosen, and a placeholder that reaches a real customer is worse
+ * than an absent line.
+ */
+export function platformPhone(): string | null {
+  return optional("PLATFORM_PHONE");
+}
+
+/** A second channel, used where a customer would rather type than talk. */
+export function platformWhatsApp(): string | null {
+  return optional("PLATFORM_WHATSAPP");
+}
+
+function optional(name: string): string | null {
+  const value = process.env[name];
+  return typeof value === "string" && value.trim() !== "" ? value.trim() : null;
+}
+
 const UNIT_SECONDS: Record<string, number> = { s: 1, m: 60, h: 3600, d: 86400 };
 
 /**

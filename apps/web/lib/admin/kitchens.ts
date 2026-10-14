@@ -526,6 +526,15 @@ export async function createKitchen(input: {
   readonly landmark?: string | null;
   readonly description?: string | null;
   readonly prepTimeMinutes?: number | null;
+  /**
+   * The pin, and it is not decoration. Every delivery fee the platform quotes is
+   * measured from the kitchen that cooks the food, so a kitchen created without
+   * a location can only ever be priced at its zone's base fee. That is a valid
+   * fallback for a kitchen whose position nobody has surveyed yet, and it is not
+   * a valid end state.
+   */
+  readonly lat?: number | null;
+  readonly lng?: number | null;
   readonly actor: OrderActor;
 }): Promise<string> {
   const name = input.name.trim();
@@ -560,6 +569,8 @@ export async function createKitchen(input: {
         landmark: input.landmark?.trim() || null,
         description: input.description?.trim() || null,
         prepTimeMinutes: input.prepTimeMinutes ?? null,
+        lat: input.lat ?? null,
+        lng: input.lng ?? null,
         // New kitchens start closed. Opening is a deliberate act by whoever set
         // it up, once the menu is in and the phone number works.
         isOpen: false,

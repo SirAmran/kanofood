@@ -188,11 +188,174 @@ export function switchField() {
   });
 }
 
+/**
+ * A number, arriving as a string from a query parameter.
+ *
+ * Every query value is a string, so `?lat=12.0022` reaches zod as text and
+ * `z.coerce.number()` would turn the blank of `?lat=` into a real `0`, which is
+ * a coordinate off the coast of Africa rather than a missing one. This refuses
+ * the blank instead, exactly as `integerField` does for whole numbers.
+ */
+export function numberField(label: string, bounds: { min?: number; max?: number } = {}) {
+  let schema = z
+    .string()
+    .max(32)
+    .transform((value) => value.trim())
+    .refine((value) => value !== "" && Number.isFinite(Number(value)), {
+      message: `${label} must be a number.`,
+    })
+    .transform((value) => Number(value));
+
+  if (bounds.min !== undefined) {
+    schema = schema.refine((value) => value >= bounds.min!, {
+      message: `${label} cannot be below ${bounds.min}.`,
+    });
+  }
+  if (bounds.max !== undefined) {
+    schema = schema.refine((value) => value <= bounds.max!, {
+      message: `${label} cannot be above ${bounds.max}.`,
+    });
+  }
+
+  return schema;
+}
+
+/**
+ * A number that may be cleared, from a form field.
+ *
+ * Three outcomes, and the middle one is the reason this exists. Absent means
+ * "leave it alone"; an empty string means "clear it to null"; anything else must
+ * parse as a number. A plain `numberField().optional()` collapses the first two
+ * into `undefined`, which would make clearing a kitchen's pin impossible: the
+ * form would send an empty box, the service would read "no change", and the old
+ * coordinate would survive an edit that visibly removed it.
+ *
+ * Accepts a real number as well as a string, because a coordinate may arrive
+ * from a map control rather than a text input.
+ */
+export function nullableNumberField(
+  label: string,
+  bounds: { min?: number; max?: number } = {},
+) {
+  return z
+    .union([z.string().max(32), z.number()])
+    .optional()
+    .transform((value, ctx): number | null | undefined => {
+      if (value === undefined) return undefined;
+
+      const text = String(value).trim();
+      if (text === "") return null;
+
+      const parsed = Number(text);
+      const outOfRange =
+        !Number.isFinite(parsed) ||
+        (bounds.min !== undefined && parsed < bounds.min) ||
+        (bounds.max !== undefined && parsed > bounds.max);
+
+      if (outOfRange) {
+        ctx.addIssue({
+          code: "custom",
+          message: `${label} must be a number between ${bounds.min ?? "-"} and ${bounds.max ?? "-"}.`,
+        });
+        return undefined;
+      }
+
+      return parsed;
+    });
+}
+
+/** Latitude and longitude for an admin form. See `nullableNumberField`. */
+export const coordinateFields = {
+  lat: nullableNumberField("Latitude", { min: -90, max: 90 }),
+  lng: nullableNumberField("Longitude", { min: -180, max: 180 }),
+} as const;
+
+/**
+ * A point on the map, from a query string.
+ *
+ * Latitude and longitude travel together or not at all. Half a coordinate is
+ * never what a caller meant: a client that sent only `lat` would otherwise be
+ * read as if it had sent no location, and the storefront would quietly fall back
+ * to listing every kitchen in Kano as though the customer had not said where
+ * they were. `pointFields` is spread into a route's own schema, `bothOrNeither`
+ * is the refinement that enforces the pair, and `toPoint` is the read.
+ */
+export const pointFields = {
+  lat: numberField("Latitude", { min: -90, max: 90 }).optional(),
+  lng: numberField("Longitude", { min: -180, max: 180 }).optional(),
+} as const;
+
+export function bothOrNeither(value: { lat?: unknown; lng?: unknown }): boolean {
+  return (value.lat === undefined) === (value.lng === undefined);
+}
+
+/**
+ * The same rule for a form, where "clear it" exists.
+ *
+ * A query string can only say "here is a number" or say nothing, so
+ * `bothOrNeither` is the whole rule there. A form can also send an empty box,
+ * which means "this kitchen has no pin". That makes three permitted states
+ * rather than two: neither field sent, both sent as a number, or both cleared.
+ * Anything else, including one cleared while the other carries a value, is half
+ * a coordinate and is refused.
+ *
+ * This is the check that stops a kitchen ending up at a latitude with no
+ * longitude, which is not a location anywhere and which the fee logic would
+ * quietly treat as "no pin" for the rest of the platform's life.
+ */
+export function completeCoordinatePair(value: {
+  lat?: number | null;
+  lng?: number | null;
+}): boolean {
+  if (value.lat === undefined && value.lng === undefined) return true;
+  if (value.lat === undefined || value.lng === undefined) return false;
+  return (value.lat === null) === (value.lng === null);
+}
+
+/** The message that goes with `completeCoordinatePair`. */
+export const COMPLETE_COORDINATE_PAIR = {
+  message: "Give both a latitude and a longitude, or clear both.",
+  path: ["lat"],
+};
+
+/** The message that goes with `bothOrNeither`, so four routes phrase it once. */
+export const BOTH_OR_NEITHER = {
+  message: "Send both a latitude and a longitude, or neither.",
+  path: ["lat"],
+};
+
+export function toPoint(value: { lat?: number; lng?: number }): {
+  lat: number;
+  lng: number;
+} | null {
+  if (value.lat === undefined || value.lng === undefined) return null;
+  return { lat: value.lat, lng: value.lng };
+}
+
 /** The route parameter, refused with a 400 rather than reaching Prisma as `undefined`. */
 export function routeId(params: Record<string, string | string[]>, key = "id"): string {
   const value = params[key];
   if (typeof value !== "string" || value === "") {
     throw ApiError.badRequest("The id is missing from the address.");
+  }
+  return value;
+}
+
+/**
+ * A slug from the address.
+ *
+ * Unlike `routeId`, this is a customer-visible name rather than an internal key,
+ * so its shape is checked here and a malformed one is refused before it costs a
+ * database round trip. The admin service generates a slug from the kitchen's
+ * name; this is the reader's half of that contract.
+ */
+export function routeSlug(params: Record<string, string | string[]>, key = "slug"): string {
+  const value = params[key];
+  if (typeof value !== "string" || value === "") {
+    throw ApiError.badRequest("The address is missing the kitchen.");
+  }
+  if (!/^[a-z0-9][a-z0-9-]{0,118}[a-z0-9]$/.test(value)) {
+    throw ApiError.badRequest("That is not a kitchen address.");
   }
   return value;
 }

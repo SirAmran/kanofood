@@ -19,7 +19,7 @@
     "db:generate": "npm run generate --workspace @kanofood/db",
     "db:migrate": "npm run migrate --workspace @kanofood/db",
     "db:seed": "npm run seed --workspace @kanofood/db",
-    "db:create-admin": "npm run create-admin --workspace @kanofood/web",
+    "db:create-admin": "npm run create-admin --workspace @kanofood/web --",
     "db:studio": "npm run studio --workspace @kanofood/db"
   },
   "devDependencies": {
