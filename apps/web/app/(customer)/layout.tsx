@@ -41,7 +41,7 @@ export default async function CustomerLayout({ children }: { readonly children: 
             <CartLink />
           </div>
           <div className="sf-header__location">
-            <LocationBar initial={location} />
+            <LocationBar location={location} />
           </div>
         </header>
 

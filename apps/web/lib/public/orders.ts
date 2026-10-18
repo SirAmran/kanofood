@@ -471,6 +471,12 @@ export interface OrderTrackView {
   readonly statusLabel: string;
   readonly placedAt: Date;
   readonly kitchen: { readonly name: string; readonly slug: string; readonly phone: string | null };
+  /**
+   * The kitchen's preparation time, and the only estimate the platform can
+   * honestly give before a rider is assigned. Null when the kitchen has not set
+   * one, which the confirmation screen says rather than inventing a number.
+   */
+  readonly etaMinutes: number | null;
   readonly address: unknown;
   readonly lines: readonly OrderTrackLine[];
   readonly subtotalKobo: bigint;
@@ -508,7 +514,7 @@ export async function readOrder(
       paymentMethod: true,
       deliveryNotes: true,
       customer: { select: { phone: true } },
-      kitchen: { select: { name: true, slug: true, phone: true } },
+      kitchen: { select: { name: true, slug: true, phone: true, prepTimeMinutes: true } },
       items: {
         select: {
           nameSnapshot: true,
@@ -538,7 +544,8 @@ export async function readOrder(
     status: order.status,
     statusLabel: ORDER_STATUS_LABELS[order.status],
     placedAt: order.placedAt,
-    kitchen: order.kitchen,
+    kitchen: { name: order.kitchen.name, slug: order.kitchen.slug, phone: order.kitchen.phone },
+    etaMinutes: order.kitchen.prepTimeMinutes,
     address: order.addressSnapshot,
     lines: order.items.map((item) => ({
       name: item.nameSnapshot,

@@ -53,6 +53,7 @@ export const GET = publicRoute<unknown, Query, { number: string }>({
       statusLabel: view.statusLabel,
       placedAt: view.placedAt,
       kitchen: view.kitchen,
+      etaMinutes: view.etaMinutes,
       address: view.address,
       lines: view.lines.map((line) => ({
         name: line.name,

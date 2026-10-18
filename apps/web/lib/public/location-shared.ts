@@ -43,3 +43,20 @@ export function encodeLocation(location: SavedLocation): string {
     JSON.stringify({ label: location.label.slice(0, 80), lat: location.lat, lng: location.lng }),
   );
 }
+
+/**
+ * The same cookie, read from the browser.
+ *
+ * Returns null on the server and for a malformed value, so a caller has one
+ * "there is no usable point" branch rather than a guard and a parse.
+ */
+export function readLocationCookie(): SavedLocation | null {
+  if (typeof document === "undefined") return null;
+
+  const prefix = `${LOCATION_COOKIE}=`;
+  for (const part of document.cookie.split(";")) {
+    const entry = part.trim();
+    if (entry.startsWith(prefix)) return parseLocation(entry.slice(prefix.length));
+  }
+  return null;
+}
