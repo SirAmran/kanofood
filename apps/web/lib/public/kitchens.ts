@@ -337,6 +337,90 @@ export async function listPublicKitchens(filters: BrowseFilters): Promise<Browse
 }
 
 // ---------------------------------------------------------------------------
+// Search across kitchens and dishes
+// ---------------------------------------------------------------------------
+
+/** One dish in a search result, with the kitchen that sells it. */
+export interface DishResult {
+  readonly id: string;
+  readonly name: string;
+  readonly description: string | null;
+  readonly priceKobo: Kobo;
+  readonly isAvailable: boolean;
+  readonly imageUrl: string | null;
+  readonly kitchenName: string;
+  readonly kitchenSlug: string;
+}
+
+export interface SearchResult {
+  readonly kitchens: readonly KitchenCard[];
+  readonly dishes: readonly DishResult[];
+}
+
+/** Room for a broad word like "rice" without turning the page into a list. */
+const SEARCH_DISH_LIMIT = 30;
+
+/**
+ * Screen 4.2: one query, two groups of answers.
+ *
+ * A customer looking for "jollof" may mean a dish or a kitchen, and guessing
+ * which one wastes a tap either way, so both are returned and the screen labels
+ * them. Dishes come from active kitchens only, because a dish on a kitchen that
+ * cannot be ordered from is a dead end; an unavailable dish is still returned
+ * and marked, for the same reason the menu shows it disabled.
+ */
+export async function searchPublic(query: string, point: BrowsePoint | null): Promise<SearchResult> {
+  const q = query.trim();
+  if (q === "") return { kitchens: [], dishes: [] };
+
+  const zone = await loadPricing(point);
+  const contains = { contains: q, mode: "insensitive" as const };
+
+  const [kitchenRows, dishRows] = await Promise.all([
+    prisma.kitchen.findMany({
+      where: {
+        isActive: true,
+        OR: [{ name: contains }, { description: contains }],
+      },
+      select: KITCHEN_SELECT,
+      take: 200,
+      orderBy: { name: "asc" },
+    }),
+    prisma.menuItem.findMany({
+      where: {
+        OR: [{ name: contains }, { description: contains }],
+        kitchen: { isActive: true },
+      },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        priceKobo: true,
+        isAvailable: true,
+        imageUrl: true,
+        kitchen: { select: { name: true, slug: true } },
+      },
+      take: SEARCH_DISH_LIMIT,
+      orderBy: { name: "asc" },
+    }),
+  ]);
+
+  return {
+    kitchens: sortCards((kitchenRows as KitchenRow[]).map((row) => toCard(row, zone, point)), "recommended"),
+    dishes: dishRows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      priceKobo: row.priceKobo,
+      isAvailable: row.isAvailable,
+      imageUrl: row.imageUrl,
+      kitchenName: row.kitchen.name,
+      kitchenSlug: row.kitchen.slug,
+    })),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // A single kitchen, with its menu
 // ---------------------------------------------------------------------------
 

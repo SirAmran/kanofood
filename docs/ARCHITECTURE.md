@@ -464,7 +464,15 @@ specifications, put to the project owner and confirmed. It is recorded here so
    `/api/v1`, guest order tokens, and role-based authorisation enforced server
    side on every request.
 5. **Admin.** Live view, kitchens, menus and image upload.
-6. **Customer.** Browse, cart, guest checkout, tracking.
+6. **Customer.** Browse, cart, guest checkout, tracking. Built in six slices:
+   (1) the customer order number in core; (2) the public browse API; (3) the
+   order API; (4) storefront browsing, screens 4.1 to 4.6; (5) the order flow,
+   screens 4.7 to 4.10; (6) after the order, screens 4.11 to 4.13. The status
+   of each slice lives in the project notes, not here. **The slice split was
+   written down on 2026-10-18, four days after the count first appeared in a
+   status line**, and the screen grouping is a reconstruction anchored to what
+   the browse and order APIs can answer rather than a recorded design; overrule
+   it if the intended grouping differs.
 7. **Kitchen.** The incoming-order queue, accept and reject, preparation status,
    menu management.
 8. **Rider.** Today's deliveries, status updates, cash recording.
