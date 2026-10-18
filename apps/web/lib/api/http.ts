@@ -115,3 +115,26 @@ export function failure(error: unknown): NextResponse<ApiFailureBody> {
 export function kobo(value: bigint): string {
   return value.toString();
 }
+
+/**
+ * The credential on an `Authorization` header, if there is one.
+ *
+ * The scheme test is case-insensitive because RFC 7235 says it is, and a client
+ * that sends `bearer` is not making a mistake. Anything that is not a
+ * well-formed two-part header returns `null` rather than throwing: a malformed
+ * header is an unauthenticated caller, which is an answer, not an error.
+ *
+ * Its own function rather than inline in two route files, because the guest
+ * order token is read on both the tracking and the cancellation route and two
+ * copies of a credential check are two places to get it subtly wrong.
+ */
+export function bearerToken(req: Request): string | null {
+  const header = req.headers.get("authorization");
+  if (!header) return null;
+
+  const [scheme, ...rest] = header.split(" ");
+  if (scheme?.toLowerCase() !== "bearer") return null;
+
+  const value = rest.join(" ").trim();
+  return value === "" ? null : value;
+}
