@@ -4,49 +4,35 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import { formatNaira } from "@kanofood/core";
-import { Alert, Button, buttonClass, Spinner } from "@kanofood/ui";
+import { Alert, Button, SkeletonText, Timeline, buttonClass } from "@kanofood/ui";
 
-import { readOrderPhone, readOrderToken } from "./checkout-store";
+import {
+  fetchOrder,
+  readStoredAccess,
+  type OrderAccess,
+  type OrderRead,
+} from "./order-api";
 
 /**
- * Screen 4.10, the confirmation.
+ * Screens 4.10 and 4.11, on one route.
  *
- * It is a read of the order that was just placed, not a copy of what the
- * checkout screen thought it was placing: the number, items, fees and status all
- * come back from the order row. That matters because the server recomputes every
- * amount, and the confirmation is the first place the customer sees what was
- * actually recorded.
+ * The URL carries the order number and nothing else: the token stays in this
+ * browser and goes as a header, so sharing the link hands over the reference,
+ * not the credential. `?placed=1` is the moment after checkout and reads as the
+ * confirmation (4.10); without it the page is tracking (4.11); refreshing a
+ * tracking page answers "where is my food" without a phone call.
  *
- * The token lives in this browser's storage, keyed by order number, and is sent
- * as a header. The URL carries the order number only, so a link shared over
- * WhatsApp does not hand out the credential; the other person has to know the
- * phone number the order was placed with, which they do if they are the one
- * picking up the food, and do not if they are not.
+ * Two rules shape the tracking half.
+ *
+ * **The timeline is the event log, not the status column.** `orders.status` is a
+ * cache of the last event, and the page reads the events themselves, so a status
+ * that ever falls out of step shows up here rather than hiding behind a pill.
+ *
+ * **A failed refresh keeps the last known status.** The customer may be on a
+ * train; replacing a good timeline with an error screen loses the only thing
+ * they came for. The error is shown above it, with the time the shown status was
+ * last confirmed, and refresh can be tried again.
  */
-
-interface OrderLine {
-  readonly name: string;
-  readonly unitPriceKobo: string;
-  readonly quantity: number;
-  readonly lineTotalKobo: string;
-  readonly notes: string | null;
-}
-
-interface OrderRead {
-  readonly orderNumber: string;
-  readonly status: string;
-  readonly statusLabel: string;
-  readonly placedAt: string;
-  readonly kitchen: { readonly name: string; readonly slug: string; readonly phone: string | null };
-  readonly etaMinutes: number | null;
-  readonly address: unknown;
-  readonly lines: readonly OrderLine[];
-  readonly subtotalKobo: string;
-  readonly deliveryFeeKobo: string;
-  readonly totalKobo: string;
-  readonly paymentMethod: "cod" | "transfer" | "card";
-  readonly deliveryNotes: string | null;
-}
 
 interface AddressSnapshot {
   readonly label: string | null;
@@ -74,74 +60,174 @@ function readAddressSnapshot(value: unknown): AddressSnapshot | null {
   };
 }
 
-function formatPlacedAt(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
+function formatDateTime(value: string | Date): string {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
   return new Intl.DateTimeFormat("en-NG", { dateStyle: "medium", timeStyle: "short" }).format(date);
+}
+
+function formatTime(value: Date): string {
+  return new Intl.DateTimeFormat("en-NG", { timeStyle: "short" }).format(value);
+}
+
+/** One person the customer can reach, with the number as the action. */
+function ContactRow({
+  label,
+  name,
+  phone,
+}: {
+  readonly label: string;
+  readonly name: string;
+  readonly phone: string;
+}) {
+  return (
+    <div className="sf-contact-row">
+      <div className="sf-contact-row__body">
+        <span className="sf-contact-row__label">{label}</span>
+        <span className="sf-contact-row__name">{name}</span>
+        <span className="sf-contact-row__phone">{phone}</span>
+      </div>
+      <a href={`tel:${phone}`} className={buttonClass({ variant: "secondary", size: "sm" })}>
+        Call
+      </a>
+    </div>
+  );
+}
+
+function DeliveryAddress({ order }: { readonly order: OrderRead }) {
+  const address = readAddressSnapshot(order.address);
+
+  return (
+    <div className="sf-summary-card">
+      {address ? (
+        <>
+          {address.label ? <span className="sf-summary-card__label">{address.label}</span> : null}
+          <span className="sf-summary-card__line">{address.addressText}</span>
+          {address.landmark ? (
+            <span className="sf-summary-card__line">{address.landmark}</span>
+          ) : null}
+          {address.instructions ? (
+            <span className="sf-summary-card__line">{address.instructions}</span>
+          ) : null}
+        </>
+      ) : (
+        <span className="sf-summary-card__line">The delivery address is on the order.</span>
+      )}
+    </div>
+  );
+}
+
+function OrderSummary({ order }: { readonly order: OrderRead }) {
+  return (
+    <>
+      <section className="sf-form__section">
+        <h2 className="sf-form__heading">Delivery</h2>
+        <DeliveryAddress order={order} />
+        <p className="sf-field__hint">
+          {order.etaMinutes
+            ? `The kitchen usually takes about ${order.etaMinutes} minutes to prepare. Delivery time depends on the rider.`
+            : "The kitchen has not set a preparation time. They will give you one when they call."}
+        </p>
+      </section>
+
+      <section className="sf-form__section">
+        <h2 className="sf-form__heading">Your order</h2>
+        <div className="sf-cart__lines">
+          {order.lines.map((line, index) => (
+            <div key={`${line.name}-${index}`} className="sf-cart-line sf-cart-line--compact">
+              <div className="sf-cart-line__body">
+                <span className="sf-cart-line__name">
+                  {line.quantity} x {line.name}
+                </span>
+                {line.notes ? <span className="sf-cart-line__note">{line.notes}</span> : null}
+              </div>
+              <span className="sf-cart-line__price">
+                {formatNaira(BigInt(line.lineTotalKobo))}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        <div className="sf-cart-total">
+          <span>Subtotal</span>
+          <span>{formatNaira(BigInt(order.subtotalKobo))}</span>
+        </div>
+        <div className="sf-cart-total">
+          <span>Delivery</span>
+          <span>{formatNaira(BigInt(order.deliveryFeeKobo))}</span>
+        </div>
+        <div className="sf-cart-total sf-cart-total--grand">
+          <span>Total</span>
+          <span>{formatNaira(BigInt(order.totalKobo))}</span>
+        </div>
+
+        <p className="sf-cart-note">
+          {PAYMENT_LABELS[order.paymentMethod]}
+          {order.paymentMethod === "cod"
+            ? `. Have ${formatNaira(BigInt(order.totalKobo))} ready for the rider.`
+            : order.paymentMethod === "transfer"
+              ? ". The kitchen confirms once the transfer is seen."
+              : "."}
+        </p>
+
+        {order.deliveryNotes ? <p className="sf-cart-note">Note: {order.deliveryNotes}</p> : null}
+      </section>
+    </>
+  );
 }
 
 export function OrderView({
   orderNumber,
   placed,
+  platformPhone,
 }: {
   readonly orderNumber: string;
   readonly placed: boolean;
+  readonly platformPhone: string | null;
 }) {
   const [order, setOrder] = useState<OrderRead | null>(null);
+  const [access, setAccess] = useState<OrderAccess | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [refreshedAt, setRefreshedAt] = useState<Date | null>(null);
   const [phonePrompt, setPhonePrompt] = useState(false);
   const [phoneInput, setPhoneInput] = useState("");
   const [copied, setCopied] = useState<string | null>(null);
 
   const load = useCallback(
-    async (access: { token: string } | { phone: string }) => {
-      setLoading(true);
+    async (nextAccess: OrderAccess, mode: "initial" | "refresh") => {
+      setAccess(nextAccess);
+
+      if (mode === "initial") setLoading(true);
+      else setRefreshing(true);
       setError(null);
 
-      const token = "token" in access ? access.token : null;
-      const phone = "phone" in access ? access.phone : null;
-      const query = phone ? `?phone=${encodeURIComponent(phone)}` : "";
-
       try {
-        const response = await fetch(`/api/v1/orders/${encodeURIComponent(orderNumber)}${query}`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        });
-        const body = (await response.json()) as
-          | { readonly ok: true; readonly data: OrderRead }
-          | { readonly ok: false; readonly error: { readonly message: string } };
-
-        if (!response.ok || !body.ok) {
-          throw new Error(
-            body.ok === false ? body.error.message : "This order could not be loaded.",
-          );
-        }
-
-        setOrder(body.data);
+        const data = await fetchOrder(orderNumber, nextAccess);
+        setOrder(data);
+        setRefreshedAt(new Date());
         setPhonePrompt(false);
       } catch (failure) {
         setError(
-          failure instanceof Error ? failure.message : "This order could not be loaded right now.",
+          failure instanceof Error
+            ? failure.message
+            : "This order could not be loaded right now.",
         );
         // A token that stops working still leaves the phone number as a way in.
-        if (!phone) setPhonePrompt(true);
+        if (!("phone" in nextAccess)) setPhonePrompt(true);
       } finally {
         setLoading(false);
+        setRefreshing(false);
       }
     },
     [orderNumber],
   );
 
   useEffect(() => {
-    const token = readOrderToken(orderNumber);
-    if (token) {
-      void load({ token });
-      return;
-    }
-
-    const savedPhone = readOrderPhone(orderNumber);
-    if (savedPhone) {
-      void load({ phone: savedPhone });
+    const stored = readStoredAccess(orderNumber);
+    if (stored) {
+      void load(stored, "initial");
       return;
     }
 
@@ -173,9 +259,12 @@ export function OrderView({
   }
 
   if (loading) {
+    // A skeleton rather than a spinner: the timeline has a known shape, and a
+    // page that reserves its height does not jump when the data arrives.
     return (
-      <section className="sf-page">
-        <Spinner label="Loading your order" />
+      <section className="sf-page" aria-busy="true">
+        <span className="kf-visually-hidden">Loading your order</span>
+        <SkeletonText lines={6} />
       </section>
     );
   }
@@ -194,7 +283,7 @@ export function OrderView({
           className="sf-form sf-form__body"
           onSubmit={(event) => {
             event.preventDefault();
-            if (phoneInput.trim()) void load({ phone: phoneInput.trim() });
+            if (phoneInput.trim()) void load({ phone: phoneInput.trim() }, "initial");
           }}
         >
           <label className="kf-field">
@@ -215,6 +304,16 @@ export function OrderView({
           <Button type="submit" variant="primary" block>
             View order
           </Button>
+
+          {platformPhone ? (
+            <p className="sf-field__hint">
+              Or call us on{" "}
+              <a href={`tel:${platformPhone}`} className="kf-link">
+                {platformPhone}
+              </a>
+              .
+            </p>
+          ) : null}
         </form>
       </section>
     );
@@ -226,134 +325,199 @@ export function OrderView({
         <Alert tone="danger" title="This order could not be loaded">
           {error ?? "Try again from the link in your confirmation."}
         </Alert>
-        <Link href="/" className={buttonClass({ variant: "secondary", block: true })}>
+        {platformPhone ? (
+          <p className="sf-field__hint">
+            If this keeps happening, call us on{" "}
+            <a href={`tel:${platformPhone}`} className="kf-link">
+              {platformPhone}
+            </a>
+            .
+          </p>
+        ) : null}
+        <Button
+          type="button"
+          variant="secondary"
+          block
+          loading={refreshing}
+          onClick={() => {
+            const next = access ?? readStoredAccess(orderNumber);
+            if (next) void load(next, "refresh");
+            else setPhonePrompt(true);
+          }}
+        >
+          Try again
+        </Button>
+        <Link href="/" className={buttonClass({ variant: "ghost", block: true })}>
           Back to KanoFood
         </Link>
       </section>
     );
   }
 
-  const address = readAddressSnapshot(order.address);
-  const totalKobo = BigInt(order.totalKobo);
+  const lastEvent = order.timeline.length > 0 ? order.timeline[order.timeline.length - 1] : null;
+
+  /* ------------------------------------------------------------ 4.10 */
+
+  if (placed) {
+    return (
+      <section className="sf-page sf-order">
+        <div className="sf-order__head">
+          <span className="sf-order__tick" aria-hidden="true">
+            ✓
+          </span>
+          <h1 className="sf-hero__title">Order received</h1>
+          <p className="sf-tile__meta">
+            {order.kitchen.name} has your order and will call to confirm.
+          </p>
+        </div>
+
+        <div className="sf-order-card">
+          <span className="sf-order-card__label">Order number</span>
+          <span className="sf-order-card__number">{order.orderNumber}</span>
+          <span className="sf-order-card__status">{order.statusLabel}</span>
+        </div>
+
+        <Alert tone="info" title="The kitchen will call you">
+          Keep your phone nearby.{" "}
+          {order.kitchen.phone ? (
+            <>
+              You can also call the kitchen on{" "}
+              <a href={`tel:${order.kitchen.phone}`} className="kf-link">
+                {order.kitchen.phone}
+              </a>
+              .
+            </>
+          ) : (
+            "The kitchen confirms every order by phone before cooking."
+          )}
+        </Alert>
+
+        <OrderSummary order={order} />
+
+        <div className="sf-form__body">
+          <Link
+            href={`/orders/${order.orderNumber}`}
+            className={buttonClass({ variant: "primary", block: true })}
+          >
+            Track this order
+          </Link>
+          <Button type="button" variant="secondary" block onClick={() => void share()}>
+            Share tracking link
+          </Button>
+          {copied ? (
+            <p className="sf-field__hint" role="status">
+              {copied}
+            </p>
+          ) : null}
+
+          <Link
+            href={`/kitchens/${order.kitchen.slug}`}
+            className={buttonClass({ variant: "ghost", block: true })}
+          >
+            Order from {order.kitchen.name} again
+          </Link>
+          <Link href="/" className={buttonClass({ variant: "ghost", block: true })}>
+            Back to home
+          </Link>
+        </div>
+      </section>
+    );
+  }
+
+  /* ------------------------------------------------------------ 4.11 */
 
   return (
-    <section className="sf-page sf-order">
-      <div className="sf-order__head">
-        <span className="sf-order__tick" aria-hidden="true">
-          {placed ? "✓" : ""}
+    <section className="sf-page sf-track">
+      <div className="sf-track__head">
+        <span className="sf-tile__meta">
+          {order.kitchen.name} · Order {order.orderNumber}
         </span>
-        <h1 className="sf-hero__title">{placed ? "Order received" : "Your order"}</h1>
-        <p className="sf-tile__meta">
-          {placed
-            ? `${order.kitchen.name} has your order and will call to confirm.`
-            : `Placed with ${order.kitchen.name} on ${formatPlacedAt(order.placedAt)}.`}
-        </p>
+        <h1 className="sf-track__status">{order.statusLabel}</h1>
+        <span className="sf-field__hint">
+          {refreshedAt ? `Last updated ${formatTime(refreshedAt)}` : "Not updated yet"}
+          {lastEvent ? ` · ${formatDateTime(lastEvent.at)}` : ""}
+        </span>
       </div>
 
-      <div className="sf-order-card">
-        <span className="sf-order-card__label">Order number</span>
-        <span className="sf-order-card__number">{order.orderNumber}</span>
-        <span className="sf-order-card__status">{order.statusLabel}</span>
-      </div>
-
-      <Alert tone="info" title="The kitchen will call you">
-        Keep your phone nearby.{" "}
-        {order.kitchen.phone ? (
-          <>
-            You can also call the kitchen on{" "}
-            <a href={`tel:${order.kitchen.phone}`} className="kf-link">
-              {order.kitchen.phone}
-            </a>
-            .
-          </>
-        ) : (
-          "The kitchen confirms every order by phone before cooking."
-        )}
-      </Alert>
+      {error ? (
+        <Alert tone="warning" title="Could not refresh">
+          {error} The status below is the last one we saw
+          {refreshedAt ? `, at ${formatTime(refreshedAt)}` : ""}.
+        </Alert>
+      ) : null}
 
       <section className="sf-form__section">
-        <h2 className="sf-form__heading">Delivery</h2>
-        {address ? (
-          <div className="sf-summary-card">
-            {address.label ? <span className="sf-summary-card__label">{address.label}</span> : null}
-            <span className="sf-summary-card__line">{address.addressText}</span>
-            {address.landmark ? (
-              <span className="sf-summary-card__line">{address.landmark}</span>
-            ) : null}
-            {address.instructions ? (
-              <span className="sf-summary-card__line">{address.instructions}</span>
-            ) : null}
-          </div>
-        ) : (
-          <p className="sf-field__hint">The delivery address is on the order.</p>
-        )}
-
-        <p className="sf-field__hint">
-          {order.etaMinutes
-            ? `The kitchen usually takes about ${order.etaMinutes} minutes to prepare. Delivery time depends on the rider.`
-            : "The kitchen has not set a preparation time. They will give you one when they call."}
-        </p>
+        <h2 className="sf-form__heading">Progress</h2>
+        <Timeline
+          label="Order progress"
+          items={order.timeline.map((event, index) => ({
+            id: event.id,
+            title: event.label,
+            time: formatDateTime(event.at),
+            body:
+              event.reason || event.note ? (
+                <>
+                  {event.reason ? <span>{event.reason}</span> : null}
+                  {event.note ? <span className="sf-track__note">{event.note}</span> : null}
+                </>
+              ) : undefined,
+            current: index === order.timeline.length - 1,
+          }))}
+        />
       </section>
 
-      <section className="sf-form__section">
-        <h2 className="sf-form__heading">Your order</h2>
-        <div className="sf-cart__lines">
-          {order.lines.map((line, index) => (
-            <div key={`${line.name}-${index}`} className="sf-cart-line sf-cart-line--compact">
-              <div className="sf-cart-line__body">
-                <span className="sf-cart-line__name">
-                  {line.quantity} x {line.name}
-                </span>
-                {line.notes ? <span className="sf-cart-line__note">{line.notes}</span> : null}
-              </div>
-              <span className="sf-cart-line__price">{formatNaira(BigInt(line.lineTotalKobo))}</span>
-            </div>
-          ))}
-        </div>
+      {order.rider || order.kitchen.phone || platformPhone ? (
+        <section className="sf-form__section">
+          <h2 className="sf-form__heading">Contact</h2>
+          {order.rider ? (
+            <ContactRow label="Rider" name={order.rider.name} phone={order.rider.phone} />
+          ) : null}
+          {order.kitchen.phone ? (
+            <ContactRow
+              label="Kitchen"
+              name={order.kitchen.name}
+              phone={order.kitchen.phone}
+            />
+          ) : null}
+          {platformPhone ? (
+            <ContactRow label="Platform" name="KanoFood support" phone={platformPhone} />
+          ) : null}
+        </section>
+      ) : null}
 
-        <div className="sf-cart-total">
-          <span>Subtotal</span>
-          <span>{formatNaira(BigInt(order.subtotalKobo))}</span>
-        </div>
-        <div className="sf-cart-total">
-          <span>Delivery</span>
-          <span>{formatNaira(BigInt(order.deliveryFeeKobo))}</span>
-        </div>
-        <div className="sf-cart-total sf-cart-total--grand">
-          <span>Total</span>
-          <span>{formatNaira(totalKobo)}</span>
-        </div>
-
-        <p className="sf-cart-note">
-          {PAYMENT_LABELS[order.paymentMethod]}
-          {order.paymentMethod === "cod"
-            ? `. Have ${formatNaira(totalKobo)} ready for the rider.`
-            : order.paymentMethod === "transfer"
-              ? ". The kitchen confirms once the transfer is seen."
-              : "."}
-        </p>
-
-        {order.deliveryNotes ? (
-          <p className="sf-cart-note">Note: {order.deliveryNotes}</p>
-        ) : null}
-      </section>
+      <OrderSummary order={order} />
 
       <div className="sf-form__body">
-        <Button type="button" variant="secondary" block onClick={() => void share()}>
-          Share tracking link
-        </Button>
-        {copied ? (
-          <p className="sf-field__hint" role="status">
-            {copied}
-          </p>
+        {order.canCancel ? (
+          <Link
+            href={`/orders/${order.orderNumber}/cancel`}
+            className={buttonClass({ variant: "danger", block: true })}
+          >
+            Request cancellation
+          </Link>
         ) : null}
+        <Button
+          type="button"
+          variant="secondary"
+          block
+          loading={refreshing}
+          onClick={() => {
+            if (access) void load(access, "refresh");
+          }}
+        >
+          Refresh status
+        </Button>
+        <Link href="/help" className={buttonClass({ variant: "ghost", block: true })}>
+          Help and contact
+        </Link>
+      </div>
 
-        <Link href={`/kitchens/${order.kitchen.slug}`} className={buttonClass({ variant: "ghost", block: true })}>
-          Order from {order.kitchen.name} again
-        </Link>
-        <Link href="/" className={buttonClass({ variant: "ghost", block: true })}>
-          Back to home
-        </Link>
+      {/* Sticky on a phone, where the timeline can push the status off-screen. */}
+      <div className="sf-track-sticky" aria-hidden="true">
+        <span className="sf-track-sticky__status">{order.statusLabel}</span>
+        <span className="sf-track-sticky__time">
+          {refreshedAt ? formatTime(refreshedAt) : ""}
+        </span>
       </div>
     </section>
   );

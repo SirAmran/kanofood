@@ -48,7 +48,10 @@ export default async function CustomerLayout({ children }: { readonly children: 
         <main className="sf-main">{children}</main>
 
         <footer className="sf-footer">
-          {brand} · Food delivery in Kano Metropolitan.
+          <span>{brand} · Food delivery in Kano Metropolitan.</span>
+          <Link href="/help" className="sf-footer__link">
+            Help and contact
+          </Link>
         </footer>
       </CartProvider>
     </div>

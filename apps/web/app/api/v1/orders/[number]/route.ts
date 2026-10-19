@@ -53,6 +53,7 @@ export const GET = publicRoute<unknown, Query, { number: string }>({
       statusLabel: view.statusLabel,
       placedAt: view.placedAt,
       kitchen: view.kitchen,
+      rider: view.rider,
       etaMinutes: view.etaMinutes,
       address: view.address,
       lines: view.lines.map((line) => ({
@@ -68,10 +69,12 @@ export const GET = publicRoute<unknown, Query, { number: string }>({
       paymentMethod: view.paymentMethod,
       deliveryNotes: view.deliveryNotes,
       timeline: view.timeline.map((event) => ({
+        id: event.id,
         status: event.status,
         label: event.label,
         at: event.at,
         reason: event.reason,
+        note: event.note,
       })),
       // Sent so the screen does not have to reimplement core's transition table
       // to decide whether to draw a cancel button. It is a hint for the interface

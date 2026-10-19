@@ -30,6 +30,12 @@ export const dynamic = "force-dynamic";
 
 const bodySchema = z.object({
   reason: z.enum(CANCELLATION_REASONS),
+  /**
+   * Optional words from the customer. Required is the reason code; the detail is
+   * what somebody would have said down the phone, and refusing it would throw
+   * away the only context a kitchen gets for "ordered by mistake".
+   */
+  note: z.string().trim().max(500, "Keep the explanation under 500 characters.").optional(),
   // The credential may arrive here or on the Authorization header. A form POST
   // from a server-rendered page has the header; a client that only holds a URL
   // has the body.
@@ -49,6 +55,7 @@ export const POST = publicRoute<z.infer<typeof bodySchema>, Record<string, never
     const result = await cancelOrder({
       orderNumber,
       reason: body.reason,
+      note: body.note ?? null,
       access: {
         token: bearerToken(req) ?? body.token ?? null,
         phone: body.phone ?? null,

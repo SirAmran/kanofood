@@ -449,12 +449,32 @@ async function assertOrderAccess(
 
 /** One step on the customer's timeline. */
 export interface OrderTrackEvent {
+  /**
+   * The event row's own id. It is the stable key for a timeline that re-renders
+   * on every refresh, where an index is not.
+   */
+  readonly id: string;
   readonly status: OrderStatus;
   /** The same word an admin and a rider read. Core owns it so they cannot drift. */
   readonly label: string;
   readonly at: Date;
   /** Words, not a code: the reason a cancellation gives, if it gave one. */
   readonly reason: string | null;
+  /** The free-text explanation the customer chose to add, if any. */
+  readonly note: string | null;
+}
+
+/**
+ * The rider once one is assigned, and only then.
+ *
+ * Read through the delivery row rather than off the order, because that is where
+ * assignment lives: an order with no rider has no delivery row at all. A customer
+ * is given the name and number of the person carrying their food, and nothing
+ * about the rider's account.
+ */
+export interface OrderTrackRider {
+  readonly name: string;
+  readonly phone: string;
 }
 
 export interface OrderTrackLine {
@@ -471,6 +491,8 @@ export interface OrderTrackView {
   readonly statusLabel: string;
   readonly placedAt: Date;
   readonly kitchen: { readonly name: string; readonly slug: string; readonly phone: string | null };
+  /** Null until a delivery row exists, which is the same moment a rider is assigned. */
+  readonly rider: OrderTrackRider | null;
   /**
    * The kitchen's preparation time, and the only estimate the platform can
    * honestly give before a rider is assigned. Null when the kitchen has not set
@@ -487,6 +509,19 @@ export interface OrderTrackView {
   readonly timeline: readonly OrderTrackEvent[];
   /** Whether the customer may still cancel, as core's transition table reads it. */
   readonly canCancel: boolean;
+}
+
+/**
+ * The customer's optional explanation, read back from the event's metadata.
+ *
+ * Metadata is untyped JSON, so this narrows rather than casts. Anything that is
+ * not a non-empty string is treated as absent, which is the same answer the
+ * screen would give if the column had never been written.
+ */
+function eventNote(metadata: unknown): string | null {
+  if (typeof metadata !== "object" || metadata === null || Array.isArray(metadata)) return null;
+  const value = (metadata as Record<string, unknown>).explanation;
+  return typeof value === "string" && value.trim() !== "" ? value.trim() : null;
 }
 
 /**
@@ -515,6 +550,7 @@ export async function readOrder(
       deliveryNotes: true,
       customer: { select: { phone: true } },
       kitchen: { select: { name: true, slug: true, phone: true, prepTimeMinutes: true } },
+      delivery: { select: { rider: { select: { name: true, phone: true } } } },
       items: {
         select: {
           nameSnapshot: true,
@@ -526,7 +562,13 @@ export async function readOrder(
         orderBy: { createdAt: "asc" },
       },
       events: {
-        select: { toStatus: true, reason: true, createdAt: true },
+        select: {
+          id: true,
+          toStatus: true,
+          reason: true,
+          metadata: true,
+          createdAt: true,
+        },
         orderBy: { createdAt: "asc" },
       },
     },
@@ -545,6 +587,7 @@ export async function readOrder(
     statusLabel: ORDER_STATUS_LABELS[order.status],
     placedAt: order.placedAt,
     kitchen: { name: order.kitchen.name, slug: order.kitchen.slug, phone: order.kitchen.phone },
+    rider: order.delivery?.rider ?? null,
     etaMinutes: order.kitchen.prepTimeMinutes,
     address: order.addressSnapshot,
     lines: order.items.map((item) => ({
@@ -560,10 +603,12 @@ export async function readOrder(
     paymentMethod: order.paymentMethod,
     deliveryNotes: order.deliveryNotes,
     timeline: order.events.map((event) => ({
+      id: event.id,
       status: event.toStatus,
       label: ORDER_STATUS_LABELS[event.toStatus],
       at: event.createdAt,
       reason: event.reason,
+      note: eventNote(event.metadata),
     })),
     canCancel: customerMayCancel(order.status),
   };
@@ -586,6 +631,8 @@ export async function cancelOrder(input: {
   readonly orderNumber: string;
   readonly access: OrderAccess;
   readonly reason: CancellationReason;
+  /** Optional detail the customer typed. Stored with the reason, never parsed. */
+  readonly note?: string | null;
 }): Promise<{ readonly status: OrderStatus; readonly at: Date }> {
   if (!isCancellationReason(input.reason)) {
     throw ApiError.badRequest("Choose a reason for cancelling.");
@@ -653,7 +700,13 @@ export async function cancelOrder(input: {
         actorUserId: null,
         actorRole: "customer",
         reason,
-        metadata: { reasonCode: input.reason, source: "storefront" },
+        metadata: {
+          reasonCode: input.reason,
+          source: "storefront",
+          // Only present when it was given, so an absent explanation reads as
+          // absent rather than as an empty string somebody meant to fill in.
+          ...(input.note?.trim() ? { explanation: input.note.trim() } : {}),
+        },
       },
     });
   }, TRANSACTION);

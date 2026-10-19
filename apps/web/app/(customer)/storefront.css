@@ -147,6 +147,14 @@
   text-align: center;
   font-size: var(--text-xs);
   color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.sf-footer__link {
+  color: var(--accent);
+  font-weight: var(--weight-semibold);
 }
 
 .sf-section {
@@ -917,4 +925,112 @@
   .sf-form__row {
     grid-template-columns: 1fr;
   }
+}
+
+/* ------------------------------------------------- tracking and help */
+
+.sf-track__head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* The one piece of type on the page that answers the question it was opened
+   for, so it is the largest thing on the screen. */
+.sf-track__status {
+  margin: 0;
+  font-size: clamp(1.5rem, 7vw, 2.25rem);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-tight);
+  line-height: 1.1;
+}
+
+.sf-track__note {
+  display: block;
+  color: var(--text-muted);
+}
+
+.sf-contact-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.sf-contact-row__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sf-contact-row__label {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.sf-contact-row__name {
+  font-weight: var(--weight-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sf-contact-row__phone {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+/* The timeline can push the current status off a phone screen, so a compact
+   copy follows the thumb. Desktop shows all of it at once and does not need
+   the bar. */
+.sf-track-sticky {
+  display: none;
+}
+
+@media (max-width: 700px) {
+  .sf-track-sticky {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    position: sticky;
+    bottom: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--elevation-2);
+  }
+}
+
+.sf-track-sticky__status {
+  flex: 1;
+  font-weight: var(--weight-semibold);
+}
+
+.sf-track-sticky__time {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.sf-faq {
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-2);
+}
+
+.sf-faq:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.sf-faq__question {
+  cursor: pointer;
+  font-weight: var(--weight-medium);
+  padding: var(--space-1) 0;
+}
+
+.sf-faq__answer {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
 }
