@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 
+import { ApiError } from "./api/http";
 import { storageProjectUrl, storageProvider, storageServiceKey } from "./env";
 
 /**
@@ -200,18 +201,18 @@ export async function storeImage(input: {
   assertProvider();
 
   if (input.bytes.length > MAX_UPLOAD_BYTES) {
-    throw new Error(
+    throw ApiError.badRequest(
       `That image is ${(input.bytes.length / 1024 / 1024).toFixed(1)} MB. The limit is 5 MB.`,
     );
   }
 
   const kind = identifyImage(input.bytes);
   if (!kind) {
-    throw new Error("That file is not a JPEG, PNG or WebP image.");
+    throw ApiError.badRequest("That file is not a JPEG, PNG or WebP image.");
   }
 
   if (input.declaredType && !input.declaredType.toLowerCase().startsWith(kind.mime)) {
-    throw new Error(
+    throw ApiError.badRequest(
       `The file says it is ${input.declaredType} but its contents are ${kind.mime}. Refused.`,
     );
   }

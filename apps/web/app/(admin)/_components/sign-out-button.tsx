@@ -13,7 +13,7 @@ import { Button } from "@kanofood/ui";
  * client transition does not, and the one moment that has to be reliable is the
  * one where someone is walking away from a shared machine.
  */
-export function SignOutButton() {
+export function SignOutButton({ signInPath = "/admin/sign-in" }: { readonly signInPath?: string }) {
   const [busy, setBusy] = useState(false);
 
   async function signOut() {
@@ -28,7 +28,7 @@ export function SignOutButton() {
       // does arrive, and the access token expires within minutes regardless.
     }
 
-    window.location.replace("/admin/sign-in");
+    window.location.replace(signInPath);
   }
 
   return (

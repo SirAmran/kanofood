@@ -22,7 +22,14 @@ import { Alert, Upload, useToast, type UploadResult } from "@kanofood/ui";
 export interface AdminUploadProps {
   /** `kitchen-logo`, `kitchen-cover` or `menu-item`. */
   readonly purpose: "kitchen-logo" | "kitchen-cover" | "menu-item";
-  readonly ownerId: string;
+  /**
+   * The record the image attaches to. Omitted by the kitchen uploader for logo
+   * and cover, where the kitchen is the caller's membership rather than a value
+   * the form sends.
+   */
+  readonly ownerId?: string;
+  /** Defaults to the admin uploader. The kitchen screen points it at its own. */
+  readonly endpoint?: string;
   readonly label?: string;
   readonly hint?: string;
   /** Shown as a toast once the server has stored and attached the image. */
@@ -32,6 +39,7 @@ export interface AdminUploadProps {
 export function AdminUpload({
   purpose,
   ownerId,
+  endpoint = "/api/v1/admin/uploads",
   label = "Upload an image",
   hint = "JPEG, PNG or WebP, up to 5 MB. It is resized on the server.",
   successMessage = "Image updated.",
@@ -43,7 +51,7 @@ export function AdminUpload({
   // The fields object is part of the request the component builds, so it has to
   // hold still between renders or every keystroke elsewhere on the page would
   // rebuild the uploader mid-flight.
-  const fields = { purpose, ownerId };
+  const fields: Record<string, string> = ownerId ? { purpose, ownerId } : { purpose };
 
   const onUploaded = useCallback(
     (_result: UploadResult) => {
@@ -57,7 +65,7 @@ export function AdminUpload({
   return (
     <div>
       <Upload
-        endpoint="/api/v1/admin/uploads"
+        endpoint={endpoint}
         fields={fields}
         label={label}
         hint={hint}
