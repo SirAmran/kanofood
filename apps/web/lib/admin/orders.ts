@@ -4,6 +4,7 @@ import type { OrderStatus } from "@kanofood/core";
 import { Prisma, prisma } from "@kanofood/db";
 
 
+import { statusTimestamps } from "../order-timestamps";
 import { lagosDayStartDaysAgo } from "./status";
 
 /**
@@ -404,44 +405,6 @@ export function adminChoices(from: OrderStatus): readonly OrderStatus[] {
 // ---------------------------------------------------------------------------
 // Writing
 // ---------------------------------------------------------------------------
-
-/**
- * The timestamp column each state sets.
- *
- * Exhaustive over the status union, so adding a status to the core list breaks
- * this function rather than writing a status with no time against it.
- */
-function statusTimestamps(to: OrderStatus, at: Date): Prisma.OrderUpdateManyMutationInput {
-  switch (to) {
-    case "CONFIRMED":
-      return { confirmedAt: at };
-    case "KITCHEN_ACCEPTED":
-      return { kitchenAcceptedAt: at };
-    case "PREPARING":
-      return { preparingAt: at };
-    case "READY_FOR_PICKUP":
-      return { readyForPickupAt: at };
-    case "RIDER_ASSIGNED":
-      return { riderAssignedAt: at };
-    case "PICKED_UP":
-      return { pickedUpAt: at };
-    case "OUT_FOR_DELIVERY":
-      return { outForDeliveryAt: at };
-    case "DELIVERED":
-      return { deliveredAt: at };
-    case "CUSTOMER_CANCELLED":
-      return { customerCancelledAt: at };
-    case "KITCHEN_REJECTED":
-      return { kitchenRejectedAt: at };
-    case "ADMIN_CANCELLED":
-      return { adminCancelledAt: at };
-    case "DELIVERY_FAILED":
-      return { deliveryFailedAt: at };
-    // The opening state has no event that moves anything into it.
-    case "PENDING_CONFIRMATION":
-      return {};
-  }
-}
 
 export interface TransitionInput {
   readonly orderId: string;

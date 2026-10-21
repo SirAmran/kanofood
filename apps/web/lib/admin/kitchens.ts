@@ -307,6 +307,8 @@ export async function updateKitchenProfile(input: {
   readonly kitchenId: string;
   readonly patch: KitchenProfileInput;
   readonly actor: OrderActor;
+  /** Set by the kitchen interface, so its own edits are not recorded as admin. */
+  readonly actorRole?: "admin" | "kitchen_staff";
 }): Promise<void> {
   const before = await prisma.kitchen.findUnique({
     where: { id: input.kitchenId },
@@ -346,7 +348,7 @@ export async function updateKitchenProfile(input: {
     await audit(
       {
         actorUserId: input.actor.userId,
-        actorRole: "admin",
+        actorRole: input.actorRole ?? "admin",
         action: "kitchen.updated",
         entityType: "kitchen",
         entityId: input.kitchenId,
@@ -379,6 +381,7 @@ export async function setKitchenOpen(input: {
   readonly kitchenId: string;
   readonly isOpen: boolean;
   readonly actor: OrderActor;
+  readonly actorRole?: "admin" | "kitchen_staff";
 }): Promise<void> {
   const kitchen = await prisma.kitchen.findUnique({
     where: { id: input.kitchenId },
@@ -396,7 +399,7 @@ export async function setKitchenOpen(input: {
     await audit(
       {
         actorUserId: input.actor.userId,
-        actorRole: "admin",
+        actorRole: input.actorRole ?? "admin",
         action: input.isOpen ? "kitchen.opened" : "kitchen.closed",
         entityType: "kitchen",
         entityId: input.kitchenId,
@@ -600,6 +603,7 @@ export async function setKitchenImage(input: {
   readonly kind: "logo" | "cover";
   readonly url: string;
   readonly actor: OrderActor;
+  readonly actorRole?: "admin" | "kitchen_staff";
 }): Promise<void> {
   const kitchen = await prisma.kitchen.findUnique({
     where: { id: input.kitchenId },
@@ -618,7 +622,7 @@ export async function setKitchenImage(input: {
     await audit(
       {
         actorUserId: input.actor.userId,
-        actorRole: "admin",
+        actorRole: input.actorRole ?? "admin",
         action: input.kind === "logo" ? "kitchen.logo_changed" : "kitchen.cover_changed",
         entityType: "kitchen",
         entityId: input.kitchenId,

@@ -17,7 +17,13 @@ import { Prisma, prisma } from "@kanofood/db";
 
 export interface AuditInput {
   readonly actorUserId: string;
-  readonly actorRole: "admin";
+  /**
+   * The role recorded on the row. `kitchen_staff` is here because a kitchen
+   * operator edits its own menu and settings, and those writes are auditable
+   * too. Recording them as `admin` would put a false actor on the trail, which
+   * is worse than not auditing them at all.
+   */
+  readonly actorRole: "admin" | "kitchen_staff";
   /** A verb in the past tense: `kitchen.updated`, `rider.suspended`. */
   readonly action: string;
   readonly entityType: string;

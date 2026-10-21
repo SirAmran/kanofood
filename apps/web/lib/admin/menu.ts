@@ -22,6 +22,32 @@ import type { OrderActor } from "./orders";
  * normal state rather than a hole in the data. `isActive` is the switch.
  */
 
+/**
+ * Who is editing, and what they are allowed to touch.
+ *
+ * The menu service is shared by the admin interface and the kitchen interface.
+ * Two optional fields make that possible without a second implementation that
+ * would drift:
+ *
+ *   - `actorRole` is what lands on the audit row. A kitchen operator editing
+ *     its own menu is recorded as `kitchen_staff`, not as a platform admin.
+ *   - `kitchenId`, when present, is a scope: any row that does not belong to it
+ *     is answered as not found. The kitchen routes always set it, from the
+ *     caller's membership; the admin routes never do, because an admin may edit
+ *     any kitchen's menu.
+ */
+export interface MenuActor extends OrderActor {
+  readonly actorRole?: "admin" | "kitchen_staff";
+  readonly kitchenId?: string;
+}
+
+/** Refuses a write to another kitchen's row when the caller is kitchen-scoped. */
+function assertInScope(actor: MenuActor, rowKitchenId: string): void {
+  if (actor.kitchenId !== undefined && actor.kitchenId !== rowKitchenId) {
+    throw ApiError.notFound("That item no longer exists on this menu.");
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Categories
 // ---------------------------------------------------------------------------
@@ -30,7 +56,7 @@ export async function createCategory(input: {
   readonly kitchenId: string;
   readonly name: string;
   readonly sortOrder?: number;
-  readonly actor: OrderActor;
+  readonly actor: MenuActor;
 }): Promise<string> {
   const name = input.name.trim();
   if (name === "") throw ApiError.badRequest("A category needs a name.");
@@ -49,7 +75,7 @@ export async function createCategory(input: {
     await audit(
       {
         actorUserId: input.actor.userId,
-        actorRole: "admin",
+        actorRole: input.actor.actorRole ?? "admin",
         action: "menu_category.created",
         entityType: "menu_category",
         entityId: category.id,
@@ -65,13 +91,14 @@ export async function createCategory(input: {
 export async function updateCategory(input: {
   readonly categoryId: string;
   readonly patch: { readonly name?: string; readonly sortOrder?: number; readonly isActive?: boolean };
-  readonly actor: OrderActor;
+  readonly actor: MenuActor;
 }): Promise<void> {
   const before = await prisma.menuCategory.findUnique({
     where: { id: input.categoryId },
-    select: { name: true, sortOrder: true, isActive: true },
+    select: { kitchenId: true, name: true, sortOrder: true, isActive: true },
   });
   if (!before) throw ApiError.notFound("That category no longer exists.");
+  assertInScope(input.actor, before.kitchenId);
 
   const data: { name?: string; sortOrder?: number; isActive?: boolean } = {};
   if (input.patch.name !== undefined) {
@@ -88,7 +115,7 @@ export async function updateCategory(input: {
     await audit(
       {
         actorUserId: input.actor.userId,
-        actorRole: "admin",
+        actorRole: input.actor.actorRole ?? "admin",
         action: "menu_category.updated",
         entityType: "menu_category",
         entityId: input.categoryId,
@@ -117,7 +144,7 @@ export interface MenuItemInput {
 export async function createMenuItem(input: {
   readonly kitchenId: string;
   readonly item: MenuItemInput;
-  readonly actor: OrderActor;
+  readonly actor: MenuActor;
 }): Promise<string> {
   const name = input.item.name.trim();
   if (name === "") throw ApiError.badRequest("An item needs a name.");
@@ -157,7 +184,7 @@ export async function createMenuItem(input: {
     await audit(
       {
         actorUserId: input.actor.userId,
-        actorRole: "admin",
+        actorRole: input.actor.actorRole ?? "admin",
         action: "menu_item.created",
         entityType: "menu_item",
         entityId: item.id,
@@ -187,7 +214,7 @@ export interface MenuItemPatch {
 export async function updateMenuItem(input: {
   readonly itemId: string;
   readonly patch: MenuItemPatch;
-  readonly actor: OrderActor;
+  readonly actor: MenuActor;
 }): Promise<void> {
   const before = await prisma.menuItem.findUnique({
     where: { id: input.itemId },
@@ -202,6 +229,7 @@ export async function updateMenuItem(input: {
     },
   });
   if (!before) throw ApiError.notFound("That item no longer exists.");
+  assertInScope(input.actor, before.kitchenId);
 
   const data: {
     categoryId?: string;
@@ -248,7 +276,7 @@ export async function updateMenuItem(input: {
     await audit(
       {
         actorUserId: input.actor.userId,
-        actorRole: "admin",
+        actorRole: input.actor.actorRole ?? "admin",
         action:
           data.priceKobo !== undefined && before.priceKobo !== data.priceKobo
             ? "menu_item.price_changed"
@@ -280,13 +308,14 @@ export async function updateMenuItem(input: {
 export async function setMenuItemAvailable(input: {
   readonly itemId: string;
   readonly isAvailable: boolean;
-  readonly actor: OrderActor;
+  readonly actor: MenuActor;
 }): Promise<void> {
   const item = await prisma.menuItem.findUnique({
     where: { id: input.itemId },
-    select: { isAvailable: true, name: true },
+    select: { kitchenId: true, isAvailable: true, name: true },
   });
   if (!item) throw ApiError.notFound("That item no longer exists.");
+  assertInScope(input.actor, item.kitchenId);
   if (item.isAvailable === input.isAvailable) return;
 
   await prisma.$transaction(async (tx) => {
@@ -294,7 +323,7 @@ export async function setMenuItemAvailable(input: {
     await audit(
       {
         actorUserId: input.actor.userId,
-        actorRole: "admin",
+        actorRole: input.actor.actorRole ?? "admin",
         action: input.isAvailable ? "menu_item.available" : "menu_item.unavailable",
         entityType: "menu_item",
         entityId: input.itemId,
@@ -317,20 +346,21 @@ export async function setMenuItemAvailable(input: {
  */
 export async function deleteMenuItem(input: {
   readonly itemId: string;
-  readonly actor: OrderActor;
+  readonly actor: MenuActor;
 }): Promise<void> {
   const item = await prisma.menuItem.findUnique({
     where: { id: input.itemId },
     select: { id: true, name: true, imageUrl: true, kitchenId: true, categoryId: true },
   });
   if (!item) throw ApiError.notFound("That item no longer exists.");
+  assertInScope(input.actor, item.kitchenId);
 
   await prisma.$transaction(async (tx) => {
     await tx.menuItem.delete({ where: { id: input.itemId } });
     await audit(
       {
         actorUserId: input.actor.userId,
-        actorRole: "admin",
+        actorRole: input.actor.actorRole ?? "admin",
         action: "menu_item.deleted",
         entityType: "menu_item",
         entityId: input.itemId,
@@ -352,13 +382,14 @@ export async function deleteMenuItem(input: {
 export async function setMenuItemImage(input: {
   readonly itemId: string;
   readonly imageUrl: string;
-  readonly actor: OrderActor;
+  readonly actor: MenuActor;
 }): Promise<void> {
   const item = await prisma.menuItem.findUnique({
     where: { id: input.itemId },
-    select: { imageUrl: true, name: true },
+    select: { kitchenId: true, imageUrl: true, name: true },
   });
   if (!item) throw ApiError.notFound("That item no longer exists.");
+  assertInScope(input.actor, item.kitchenId);
 
   const previous = item.imageUrl;
 
@@ -367,7 +398,7 @@ export async function setMenuItemImage(input: {
     await audit(
       {
         actorUserId: input.actor.userId,
-        actorRole: "admin",
+        actorRole: input.actor.actorRole ?? "admin",
         action: "menu_item.image_changed",
         entityType: "menu_item",
         entityId: input.itemId,
