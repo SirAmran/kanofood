@@ -6,12 +6,12 @@
  * beside them — the label is what the customer picks and what the kitchen is
  * shown, and keeping the pair together stops the two drifting.
  *
- * **Spec gap, deliberately not filled.** Section 8 says a kitchen rejection
- * "requires a reason" and then never lists one, while the customer's six are
- * spelled out. No rejection reasons are invented here. Inventing them would put
- * fabricated product decisions into the one module whose job is to hold real
- * ones, and a wrong list is worse than an absent one because it looks decided.
- * Section 8 needs to carry the list before the kitchen interface is built.
+ * **Spec gap, closed by decision on 2026-10-20.** Section 8 says a kitchen
+ * rejection "requires a reason" and then never lists one, while the customer's
+ * six are spelled out. The kitchen interface cannot be built without the list:
+ * reject is one of the two largest controls on the order queue. Four reasons are
+ * decided below and marked as a decision rather than as specification wording.
+ * Section 8 still needs to carry them; until it does, this file is the record.
  */
 
 import type { OrderStatus } from "./order-status.ts";
@@ -44,6 +44,49 @@ const CANCELLATION_REASON_SET: ReadonlySet<string> = new Set(CANCELLATION_REASON
 
 export function isCancellationReason(value: unknown): value is CancellationReason {
   return typeof value === "string" && CANCELLATION_REASON_SET.has(value);
+}
+
+/**
+ * Why a kitchen turned an order down.
+ *
+ * **A decision, not a transcription.** PRODUCT_SPEC section 8 requires the
+ * reason and lists none, so these four were chosen for the kitchen interface on
+ * 2026-10-20 and are recorded here as the decision they are. The shape follows
+ * the customer's list: short codes with the wording an operator sees kept beside
+ * them, and an `OTHER` escape so a real situation the list did not anticipate is
+ * never blocked by the form.
+ *
+ * Kept to four because the operator picks one on a phone, mid-service, and each
+ * additional choice is a second of thinking while a customer waits. The reasons
+ * are not analytics categories to grow: the platform needs to know whether the
+ * kitchen could take the order (sold out, too busy, closing), not a taxonomy.
+ */
+export const KITCHEN_REJECTION_REASONS = [
+  "ITEMS_UNAVAILABLE",
+  "TOO_BUSY",
+  "CLOSING",
+  "OTHER",
+] as const;
+
+export type KitchenRejectionReason = (typeof KITCHEN_REJECTION_REASONS)[number];
+
+export const KITCHEN_REJECTION_REASON_LABELS: Readonly<
+  Record<KitchenRejectionReason, string>
+> = {
+  ITEMS_UNAVAILABLE: "An item sold out",
+  TOO_BUSY: "Too busy right now",
+  CLOSING: "Kitchen is closing",
+  OTHER: "Other",
+};
+
+const KITCHEN_REJECTION_REASON_SET: ReadonlySet<string> = new Set(
+  KITCHEN_REJECTION_REASONS,
+);
+
+export function isKitchenRejectionReason(
+  value: unknown,
+): value is KitchenRejectionReason {
+  return typeof value === "string" && KITCHEN_REJECTION_REASON_SET.has(value);
 }
 
 /**

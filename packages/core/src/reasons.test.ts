@@ -4,9 +4,12 @@ import assert from "node:assert/strict";
 import {
   CANCELLATION_REASON_LABELS,
   CANCELLATION_REASONS,
+  KITCHEN_REJECTION_REASON_LABELS,
+  KITCHEN_REJECTION_REASONS,
   assertReasonProvided,
   customerMayCancel,
   isCancellationReason,
+  isKitchenRejectionReason,
   requiresReason,
 } from "./reasons.ts";
 
@@ -33,6 +36,20 @@ test("a reason is validated against the known set", () => {
   assert.equal(isCancellationReason("SOMETHING_ELSE"), false);
   assert.equal(isCancellationReason(undefined), false);
   assert.equal(isCancellationReason(3), false);
+});
+
+test("the kitchen rejection reasons are four, labelled, and separate from the customer's", () => {
+  // A decision taken 2026-10-20 because PRODUCT_SPEC section 8 names no list.
+  assert.deepEqual(
+    KITCHEN_REJECTION_REASONS.map((reason) => KITCHEN_REJECTION_REASON_LABELS[reason]),
+    ["An item sold out", "Too busy right now", "Kitchen is closing", "Other"],
+  );
+  assert.equal(KITCHEN_REJECTION_REASONS.length, 4);
+
+  assert.equal(isKitchenRejectionReason("ITEMS_UNAVAILABLE"), true);
+  assert.equal(isKitchenRejectionReason("OTHER"), true);
+  assert.equal(isKitchenRejectionReason("CHANGED_MIND"), false);
+  assert.equal(isKitchenRejectionReason(undefined), false);
 });
 
 test("a reason is required to cancel and to reject, and nowhere else", () => {
