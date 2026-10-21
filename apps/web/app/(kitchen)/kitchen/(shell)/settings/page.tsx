@@ -83,7 +83,7 @@ export default async function KitchenSettingsPage() {
                 src={kitchen.logoUrl}
                 alt={`${kitchen.name} logo`}
                 shape="square"
-                fallback={<span className="kf-muted">No logo</span>}
+                fallback={<img src="/images/kitchen-placeholder.svg" alt="" />}
               />
               <AdminUpload
                 endpoint="/api/v1/kitchen/uploads"
@@ -97,7 +97,7 @@ export default async function KitchenSettingsPage() {
                 src={kitchen.coverUrl}
                 alt={`${kitchen.name} cover`}
                 shape="wide"
-                fallback={<span className="kf-muted">No cover photo</span>}
+                fallback={<img src="/images/kitchen-placeholder.svg" alt="" />}
               />
               <AdminUpload
                 endpoint="/api/v1/kitchen/uploads"

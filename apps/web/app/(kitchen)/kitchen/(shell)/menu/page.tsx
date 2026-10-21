@@ -18,10 +18,12 @@ import {
   TableWrap,
   Td,
   Th,
+  VisuallyHidden,
 } from "@kanofood/ui";
 
 import { AdminForm } from "@/app/(admin)/_components/admin-form";
 import { AdminToggle } from "@/app/(admin)/_components/admin-toggle";
+import { MenuOrderButtons } from "@/app/(kitchen)/_components/menu-order-buttons";
 import { loadKitchenMenu } from "@/lib/kitchen/menu";
 import { requireKitchen } from "@/lib/kitchen/session";
 
@@ -102,17 +104,23 @@ export default async function KitchenMenuPage() {
                         <Th>Dish</Th>
                         <Th numeric>Price</Th>
                         <Th>Available</Th>
+                        <Th>Order</Th>
                         <Th>
-                          <span className="kf-visually-hidden">Edit</span>
+                          <VisuallyHidden>Edit</VisuallyHidden>
                         </Th>
                       </tr>
                     </thead>
                     <tbody>
-                      {category.items.map((item) => (
+                      {category.items.map((item, index) => (
                         <tr key={item.id}>
                           <Td label="Dish">
                             <Cluster>
-                              <Media src={item.imageUrl} alt={item.name} shape="thumb" />
+                              <Media
+                                src={item.imageUrl}
+                                alt={item.name}
+                                shape="thumb"
+                                fallback={<img src="/images/dish-placeholder.svg" alt="" />}
+                              />
                               <span>
                                 {item.name}
                                 {item.description ? (
@@ -131,6 +139,14 @@ export default async function KitchenMenuPage() {
                               label={item.isAvailable ? "Available" : "Sold out"}
                               checked={item.isAvailable}
                               successMessage={item.isAvailable ? "Marked sold out." : "Back on the menu."}
+                            />
+                          </Td>
+                          <Td label="Order">
+                            <MenuOrderButtons
+                              itemId={item.id}
+                              name={item.name}
+                              canMoveUp={index > 0}
+                              canMoveDown={index < category.items.length - 1}
                             />
                           </Td>
                           <Td label="Edit">

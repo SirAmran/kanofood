@@ -64,7 +64,7 @@ export default async function KitchenMenuItemPage({ params }: { params: Promise<
               src={item.imageUrl}
               alt={item.name}
               shape="thumb"
-              fallback={<span className="kf-muted">No photo</span>}
+              fallback={<img src="/images/dish-placeholder.svg" alt="" />}
             />
             <AdminUpload
               endpoint="/api/v1/kitchen/uploads"

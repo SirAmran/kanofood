@@ -1,6 +1,8 @@
 import type { Kobo } from "@kanofood/core";
 import { prisma } from "@kanofood/db";
 
+import { ApiError } from "../api/http";
+import { audit } from "../admin/audit";
 import {
   createCategory,
   createMenuItem,
@@ -196,5 +198,66 @@ export function setOwnItemImage(input: {
     itemId: input.itemId,
     imageUrl: input.imageUrl,
     actor: writer(input.kitchenId, input.actor),
+  });
+}
+
+/**
+ * Move a dish one place up or down inside its own section. Screen 5.6's
+ * ordering, delivered as buttons rather than drag and drop.
+ *
+ * Positions are renumbered 0..n-1 across the whole section rather than swapping
+ * two values. Swapping is wrong whenever both dishes share a `sort_order`, which
+ * is what every dish added through the form gets when the field is left blank,
+ * and two identical numbers have no order between them to swap.
+ *
+ * One audit entry is written for the move, against the dish that moved, not one
+ * per renumbered row: the operator did one thing, and the ledger should say one
+ * thing rather than fifty.
+ */
+export async function moveOwnItem(input: {
+  readonly kitchenId: string;
+  readonly itemId: string;
+  readonly direction: "up" | "down";
+  readonly actor: OrderActor;
+}): Promise<void> {
+  const item = await prisma.menuItem.findFirst({
+    where: { id: input.itemId, kitchenId: input.kitchenId },
+    select: { id: true, categoryId: true, name: true },
+  });
+  if (!item) throw ApiError.notFound("That dish is not on this kitchen's menu.");
+
+  const siblings = await prisma.menuItem.findMany({
+    where: { kitchenId: input.kitchenId, categoryId: item.categoryId },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    select: { id: true, sortOrder: true },
+  });
+
+  const from = siblings.findIndex((row) => row.id === item.id);
+  const to = input.direction === "up" ? from - 1 : from + 1;
+  if (from === -1 || to < 0 || to >= siblings.length) return;
+
+  const reordered = [...siblings];
+  const [moved] = reordered.splice(from, 1);
+  if (!moved) return;
+  reordered.splice(to, 0, moved);
+
+  await prisma.$transaction(async (tx) => {
+    for (const [position, row] of reordered.entries()) {
+      if (row.sortOrder === position) continue;
+      await tx.menuItem.update({ where: { id: row.id }, data: { sortOrder: position } });
+    }
+
+    await audit(
+      {
+        actorUserId: input.actor.userId,
+        actorRole: "kitchen_staff",
+        action: "menu_item.reordered",
+        entityType: "menu_item",
+        entityId: item.id,
+        before: { position: from, sortOrder: siblings[from]?.sortOrder ?? null },
+        after: { position: to, sortOrder: to },
+      },
+      tx,
+    );
   });
 }
