@@ -528,6 +528,10 @@ model Delivery {
   deliveredAt       DateTime? @map("delivered_at") @db.Timestamptz(3)
   failedAt          DateTime? @map("failed_at") @db.Timestamptz(3)
   failureReason     String?   @map("failure_reason")
+  /// Set when the rider clears a delivery the platform cancelled underneath
+  /// them. Without it a cancelled job would follow the rider around for days.
+  /// Only ever set on a cancellation, never on the rider's own failure.
+  acknowledgedAt    DateTime? @map("acknowledged_at") @db.Timestamptz(3)
   distanceKm        Decimal?  @map("distance_km") @db.Decimal(6, 2)
   deliveryNotes     String?   @map("delivery_notes")
   createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
