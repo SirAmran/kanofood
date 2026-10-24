@@ -90,16 +90,64 @@ export function isKitchenRejectionReason(
 }
 
 /**
+ * Why a rider could not complete a delivery.
+ *
+ * **A decision, not a transcription.** UX_SPEC section 6.5 names five reasons
+ * and PRODUCT_SPEC section 8 does not carry them at all, which is the same gap
+ * the kitchen rejection list had before it was decided on 2026-10-20. These are
+ * the five the rider screen names, promoted to typed values here so the form,
+ * the timeline and any later report read them from one place.
+ *
+ * A failed delivery is never a dead end: the order stays visible on the rider's
+ * screen and the admin's failure queue, and resolving it is an admin action.
+ */
+export const DELIVERY_FAILURE_REASONS = [
+  "CUSTOMER_UNREACHABLE",
+  "WRONG_ADDRESS",
+  "REFUSED",
+  "PAYMENT_ISSUE",
+  "OTHER",
+] as const;
+
+export type DeliveryFailureReason = (typeof DELIVERY_FAILURE_REASONS)[number];
+
+export const DELIVERY_FAILURE_REASON_LABELS: Readonly<
+  Record<DeliveryFailureReason, string>
+> = {
+  CUSTOMER_UNREACHABLE: "Customer could not be reached",
+  WRONG_ADDRESS: "Wrong address",
+  REFUSED: "Customer refused the order",
+  PAYMENT_ISSUE: "Problem with payment",
+  OTHER: "Other",
+};
+
+const DELIVERY_FAILURE_REASON_SET: ReadonlySet<string> = new Set(
+  DELIVERY_FAILURE_REASONS,
+);
+
+export function isDeliveryFailureReason(
+  value: unknown,
+): value is DeliveryFailureReason {
+  return typeof value === "string" && DELIVERY_FAILURE_REASON_SET.has(value);
+}
+
+/**
  * Transitions that are only meaningful with a stated reason.
  *
  * A customer cancelling and a kitchen rejecting both change what somebody
  * planned their day around, so both must say why. An admin cancelling does not
  * appear here: section 8 gives the admin three possible follow-up actions and
  * makes none of them automatic, so the admin's judgement is already the record.
+ *
+ * A failed delivery is added as part of the rider interface. The reason is what
+ * the admin's failure queue triages on: "could not be reached" and "refused" are
+ * two very different follow-ups, and section 6.5 makes the list mandatory on the
+ * screen that reports it.
  */
 const REASON_REQUIRED: ReadonlySet<OrderStatus> = new Set<OrderStatus>([
   "CUSTOMER_CANCELLED",
   "KITCHEN_REJECTED",
+  "DELIVERY_FAILED",
 ]);
 
 export function requiresReason(to: OrderStatus): boolean {
