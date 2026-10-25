@@ -11,6 +11,8 @@ import {
 } from "@kanofood/core";
 import { prisma } from "@kanofood/db";
 
+import { addressText } from "../orders/address";
+import { queueOrderSheet } from "../sheets/sync";
 import { providerFor } from "./providers";
 
 /**
@@ -78,6 +80,11 @@ type DispatchOrder = {
  * transaction: a notification must not be able to roll back an order, and an
  * order must not wait on a push service.
  *
+ * **This is also where the Sheets row is queued**, because both features hang off
+ * the same fact: the order moved. The alternative is a second call beside each of
+ * the six call sites, which is six more chances to forget one and a sheet that is
+ * quietly missing the moves nobody remembered.
+ *
  * The `try` around `after` is not defensive noise. `after` only works inside a
  * request, so a script, a seed or a service called directly from a test would
  * throw here and lose the notification entirely. The fallback runs the same
@@ -86,7 +93,12 @@ type DispatchOrder = {
  */
 export function queueOrderStatus(orderId: string, status: OrderStatus): void {
   const run = async (): Promise<void> => {
-    const results = await Promise.allSettled([dispatchOrderStatus(orderId, status)]);
+    // All settled, not all: a sheet that is down must not stop the messages, and
+    // a provider that throws must not stop the row being written for the sheet.
+    const results = await Promise.allSettled([
+      dispatchOrderStatus(orderId, status),
+      queueOrderSheet(orderId, status),
+    ]);
 
     for (const result of results) {
       if (result.status === "rejected") {
@@ -247,20 +259,6 @@ async function latestReason(orderId: string, status: OrderStatus): Promise<strin
     select: { reason: true },
   });
   return event?.reason?.trim() || null;
-}
-
-/**
- * The delivery area for the copy, read off the order's address snapshot.
- *
- * Parsed here rather than through `readAddressSnapshot` in the rider module,
- * which is the other reader of this shape: that module imports this one, so
- * importing it back would be a cycle. The snapshot is written by `placeOrder`
- * and frozen, so this reads four optional strings and nothing else.
- */
-function addressText(snapshot: unknown): string | null {
-  if (!snapshot || typeof snapshot !== "object") return null;
-  const value = (snapshot as { addressText?: unknown }).addressText;
-  return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
 async function deliver(input: {

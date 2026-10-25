@@ -400,7 +400,8 @@ STORAGE_PROVIDER
 STORAGE_KEY
 STORAGE_SECRET
 SHEETS_SYNC_ENABLED       off by default
-SHEETS_SYNC_TARGET_ID
+SHEETS_WEBHOOK_URL        the Apps Script web app, ends in /exec
+SHEETS_WEBHOOK_TOKEN      shared secret the script checks
 ```
 
 `.env.example` carries every name with empty or placeholder values. `.env` is
@@ -411,8 +412,16 @@ gitignored from the first commit.
 **Google Sheets.** Reporting and operations only, never the database. The
 application writes order and settlement summaries. Sync is asynchronous and
 failure-tolerant: if Sheets is down, orders continue and the sync catches up.
-`SHEETS_SYNC_ENABLED` defaults to off. Note that the existing Sheets MCP access
-on this machine is read-only, so writing needs a separate scope grant.
+`SHEETS_SYNC_ENABLED` defaults to off.
+
+Writes go through a Google Apps Script web app (`docs/sheets/code.gs`) posted to
+over HTTPS, decided 2026-10-25. The earlier plan used the Sheets API and needed
+an OAuth scope grant, because the Sheets access already on this machine is
+read-only. The Apps Script route removes that grant entirely: one deployed `/exec`
+URL and one shared secret in the script and in `SHEETS_WEBHOOK_URL` and
+`SHEETS_WEBHOOK_TOKEN`, both server side. Each row carries a stable key, so a
+retry updates the row instead of appending a duplicate - which is what makes a
+resync script a real catch-up rather than a second copy.
 
 **Maps.** Location capture is a draggable pin on an OpenStreetMap tile layer via
 Leaflet. Free, no API key, no per-load billing, and a pin is a better fit for

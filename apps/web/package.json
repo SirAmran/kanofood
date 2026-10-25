@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "create-admin": "node --env-file-if-exists=../../.env scripts/create-admin.ts"
+    "create-admin": "node --env-file-if-exists=../../.env scripts/create-admin.ts",
+    "sheets-resync": "node --env-file-if-exists=../../.env scripts/sheets-resync.ts"
   },
   "dependencies": {
     "@kanofood/core": "*",

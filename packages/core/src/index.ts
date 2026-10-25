@@ -11,12 +11,12 @@
  * dependency competes for the same 4GB.
  */
 
-export * from "./money";
-export * from "./order-status";
-export * from "./geo";
-export * from "./pricing";
-export * from "./order-money";
-export * from "./reasons";
-export * from "./settlement";
-export * from "./order-number";
-export * from "./notifications";
+export * from "./money.ts";
+export * from "./order-status.ts";
+export * from "./geo.ts";
+export * from "./pricing.ts";
+export * from "./order-money.ts";
+export * from "./reasons.ts";
+export * from "./settlement.ts";
+export * from "./order-number.ts";
+export * from "./notifications.ts";

@@ -203,3 +203,27 @@ export function pushVapidSubject(): string {
   return optional("PUSH_VAPID_SUBJECT") ?? "mailto:notifications@kanofood.local";
 }
 
+/**
+ * The Google Sheets reporting sync. ARCHITECTURE.md section 12.
+ *
+ * Off unless the flag says otherwise, because a reporting copy that silently
+ * starts writing is a second source of truth nobody asked for. The target is an
+ * Apps Script web app (`docs/sheets/code.gs`) rather than the Sheets API, so
+ * there is no OAuth token to hold and no scope grant to maintain: one URL and
+ * one shared secret, both server side.
+ *
+ * All three are optional. Missing configuration is a reason to record a skipped
+ * sync, never a reason to fail an order.
+ */
+export function sheetsSyncEnabled(): boolean {
+  return optional("SHEETS_SYNC_ENABLED")?.toLowerCase() === "true";
+}
+
+export function sheetsWebhookUrl(): string | null {
+  return optional("SHEETS_WEBHOOK_URL");
+}
+
+export function sheetsWebhookToken(): string | null {
+  return optional("SHEETS_WEBHOOK_TOKEN");
+}
+

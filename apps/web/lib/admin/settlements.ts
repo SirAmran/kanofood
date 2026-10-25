@@ -8,6 +8,7 @@ import type { Kobo } from "@kanofood/core";
 import { prisma } from "@kanofood/db";
 
 import { ApiError } from "../api/http";
+import { queueSettlementSheet } from "../sheets/sync";
 import { audit, snapshot } from "./audit";
 import { lagosDayStartDaysAgo } from "./status";
 import type { OrderActor } from "./orders";
@@ -257,7 +258,7 @@ export async function createSettlement(input: {
 
   const model = input.model ?? "model_a";
 
-  return prisma.$transaction(async (tx) => {
+  const settlementId = await prisma.$transaction(async (tx) => {
     const settlement = await tx.kitchenSettlement.create({
       data: {
         kitchenId: draft.kitchenId,
@@ -294,6 +295,12 @@ export async function createSettlement(input: {
 
     return settlement.id;
   });
+
+  // After the money is committed, never inside the transaction: a reporting web
+  // app being slow or down must not be able to fail a settlement.
+  queueSettlementSheet(settlementId);
+
+  return settlementId;
 }
 
 export async function paySettlement(input: {
