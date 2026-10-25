@@ -5,6 +5,7 @@ import { Avatar, ToastProvider } from "@kanofood/ui";
 
 import { requireAdmin } from "@/lib/admin/session";
 import { AdminNav } from "../../_components/admin-nav";
+import { NotificationBell } from "../../_components/notification-bell";
 import { SessionKeepAlive } from "../../_components/session-keep-alive";
 import { SignOutButton } from "../../_components/sign-out-button";
 
@@ -60,6 +61,7 @@ export default async function AdminShellLayout({ children }: { children: ReactNo
             <span className="kf-muted">Admin</span>
 
             <span className="kf-cluster">
+              <NotificationBell orderHrefBase="/admin/orders" />
               <Avatar name={admin.name} />
               <SignOutButton />
             </span>

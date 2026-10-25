@@ -5,6 +5,7 @@ import { Avatar, Badge, ToastProvider } from "@kanofood/ui";
 
 import { KITCHEN_SIGN_IN_PATH, requireKitchen } from "@/lib/kitchen/session";
 import { KitchenNav } from "../../_components/kitchen-nav";
+import { NotificationBell } from "@/app/(admin)/_components/notification-bell";
 import { SessionKeepAlive } from "@/app/(admin)/_components/session-keep-alive";
 import { SignOutButton } from "@/app/(admin)/_components/sign-out-button";
 
@@ -62,6 +63,7 @@ export default async function KitchenShellLayout({ children }: { children: React
             </span>
 
             <span className="kf-cluster">
+              <NotificationBell orderHrefBase="/kitchen/orders" />
               <Avatar name={actor.name} />
               <SignOutButton signInPath={KITCHEN_SIGN_IN_PATH} />
             </span>
