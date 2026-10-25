@@ -132,6 +132,36 @@ enum SettlementModel {
   model_b
 }
 
+/// Who a notification is for. Not `users.role`, deliberately: `kitchen` is the
+/// kitchen as a unit and is fanned out to one row per active member of staff,
+/// while `customer` is usually a guest who has no `users` row at all. Section 8.
+enum NotificationRecipient {
+  admin
+  kitchen
+  rider
+  customer
+}
+
+/// Section 8's five channels. `sms` and `whatsapp` have no provider yet and are
+/// present so adding one is a provider rather than a migration.
+enum NotificationChannel {
+  in_app
+  push
+  email
+  sms
+  whatsapp
+}
+
+/// `skipped` is a real outcome and not a polite failure: a channel whose
+/// provider is not configured has not failed, it has nothing to send with.
+/// `error` carries the reason either way, so the admin view can tell them apart.
+enum NotificationStatus {
+  pending
+  sent
+  failed
+  skipped
+}
+
 // ---------------------------------------------------------------------------
 // Identity and access
 // ---------------------------------------------------------------------------
@@ -156,6 +186,8 @@ model User {
   paymentsReconciled Payment[] @relation("PaymentReconciledBy")
   cashReceived    CashCollection[] @relation("CashReceivedBy")
   settlementsPaid KitchenSettlement[] @relation("SettlementPaidBy")
+  notifications   Notification[]
+  pushSubscriptions PushSubscription[]
 
   @@map("users")
 }
@@ -219,6 +251,8 @@ model Customer {
   user      User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
   addresses Address[]
   orders    Order[]
+  notifications Notification[]
+  pushSubscriptions PushSubscription[]
 
   /// Not unique: section 5 marks uniqueness explicitly where it wants it
   /// (`users.phone`, `kitchens.slug`, `orders.order_number`) and does not here.
@@ -430,6 +464,7 @@ model Order {
   events     OrderEvent[]
   delivery   Delivery?
   payments   Payment[]
+  notifications Notification[]
 
   /// Section 5.2. The third index, the partial one on non-terminal statuses for
   /// the admin live view, cannot be expressed here: Prisma has no partial-index
@@ -620,4 +655,104 @@ model KitchenSettlement {
 
   @@index([kitchenId, status])
   @@map("kitchen_settlements")
+}
+
+// ---------------------------------------------------------------------------
+// Notifications
+// ---------------------------------------------------------------------------
+
+/// One thing that had to be said to one person over one channel. Section 8.
+///
+/// The row is written before any provider is touched and updated after it
+/// answers, which is the whole point of the table: a notification that never
+/// left the building is a visible row with a reason, not an absence. Nothing in
+/// the application ever waits on one, and nothing throws when one fails.
+///
+/// The recipient is either a `users` row (admin, a member of kitchen staff, a
+/// rider) or a `customers` row (a guest, who has no account in V1), never both.
+/// Prisma cannot express a CHECK constraint, so the either/or is added as raw
+/// SQL in the migration and flagged there, the same way the partial index is.
+///
+/// A kitchen is fanned out to one row per active member of staff rather than one
+/// row per kitchen, because `read_at` belongs to a person and so does a push
+/// subscription. Two people on the same kitchen both stop seeing the badge when
+/// each has read their own.
+///
+/// `dedupe_key` makes dispatch idempotent. Dispatch runs after the response has
+/// been sent, and a retried request must not push the same order to a kitchen
+/// twice. It is a column rather than a composite unique because Postgres treats
+/// NULLs as distinct in a unique index, and half these targets are legitimately
+/// NULL. The key is order, status, recipient kind, channel and target.
+model Notification {
+  id            String               @id @default(uuid(7)) @db.Uuid
+  orderId       String               @map("order_id") @db.Uuid
+  /// The status the order had just reached. This is the event: `packages/core`
+  /// routes notifications by order status, so the two must not drift.
+  orderStatus   OrderStatus          @map("order_status")
+  recipientType NotificationRecipient @map("recipient_type")
+  userId        String?              @map("user_id") @db.Uuid
+  customerId    String?              @map("customer_id") @db.Uuid
+  channel       NotificationChannel
+  status        NotificationStatus   @default(pending)
+  title         String
+  body          String
+  /// Set when a provider accepted the message, and its own identifier for it.
+  providerRef   String?              @map("provider_ref")
+  /// Why it failed or was skipped, in words an operator can act on.
+  error         String?
+  attempts      Int                  @default(0)
+  sentAt        DateTime?            @map("sent_at") @db.Timestamptz(3)
+  /// In-app only. A push is read when the phone shows it; this is the badge.
+  readAt        DateTime?            @map("read_at") @db.Timestamptz(3)
+  dedupeKey     String               @unique @map("dedupe_key")
+  createdAt     DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  order    Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user     User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  /// The unread badge, per person. Ordered by time so the newest is first.
+  @@index([userId, readAt, createdAt])
+  /// The customer's tracking page reads by customer, and a guest has no user.
+  @@index([customerId, createdAt])
+  /// The admin's "what did not go out" view. Section 8: never silent.
+  @@index([status, createdAt])
+  /// Every foreign key carries an index here; this one also answers "what was
+  /// said about this order", which is how a complaint gets investigated.
+  @@index([orderId])
+  @@map("notifications")
+}
+
+/// One browser's push endpoint. Section 8's Web Push channel.
+///
+/// `endpoint` is unique because the browser issues it: subscribing twice from
+/// the same browser is the same endpoint, and that is what makes re-subscribing
+/// safe. The two keys are the client's, from `PushSubscription.getKey`, and are
+/// needed to encrypt every message to that endpoint.
+///
+/// `disabled_at` rather than deletion: a push service answers 404 or 410 when an
+/// endpoint is gone, and keeping the row is how the admin view can show that a
+/// person stopped receiving pushes on one device instead of the notification
+/// failing with no history behind it.
+model PushSubscription {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  userId     String?   @map("user_id") @db.Uuid
+  customerId String?   @map("customer_id") @db.Uuid
+  endpoint   String    @unique
+  /// The client public key and auth secret, base64url, as the Push API gives them.
+  p256dh     String
+  auth       String
+  userAgent  String?   @map("user_agent")
+  disabledAt DateTime? @map("disabled_at") @db.Timestamptz(3)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user     User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  /// Both foreign keys carry an index, as everywhere else in this file.
+  @@index([userId])
+  @@index([customerId])
+  @@map("push_subscriptions")
 }
