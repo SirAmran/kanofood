@@ -159,3 +159,23 @@ export function authTokenTtlSecondsFor(role: string): number {
   return role === "admin" ? ttlToSeconds(adminTokenTtl(), 300) : authTokenTtlSeconds();
 }
 
+/**
+ * Email, through Resend. ARCHITECTURE.md sections 8 and 11.
+ *
+ * `EMAIL_PROVIDER_KEY` is the API key and `EMAIL_FROM` is the verified sender.
+ * Both are empty in this repository on purpose: the provider is built to be
+ * inert, not disabled, so an unconfigured install records each email as
+ * `skipped` with the reason instead of failing an order or a build.
+ *
+ * Email is **internal only** — admin, kitchen and rider. A customer has no email
+ * address in this data model at all (section 7: no customer accounts in V1), and
+ * a test in core holds the rule. Nothing here should ever grow a customer path.
+ */
+export function resendApiKey(): string | null {
+  return optional("EMAIL_PROVIDER_KEY");
+}
+
+export function emailFrom(): string | null {
+  return optional("EMAIL_FROM");
+}
+

@@ -1,5 +1,7 @@
 import type { NotificationChannel } from "@kanofood/core";
 
+import { emailProvider } from "./email";
+
 /**
  * One channel's way of sending. docs/ARCHITECTURE.md section 8: "one interface,
  * several providers, chosen per event and per role".
@@ -8,11 +10,10 @@ import type { NotificationChannel } from "@kanofood/core";
  * the record of the attempt rather than a side effect of it. That ordering is
  * what makes a notification that never left the building visible.
  *
- * Phase 9 builds the interface and the in-app provider. Email and Web Push add
- * their own providers in the slices that follow, and neither needs anything in
- * this file to change beyond one entry in `PROVIDERS`: a channel with no entry
- * is recorded as `skipped` with a reason, which is why the registry is allowed
- * to be partial while the keys are still empty.
+ * Two of the five channels have a provider. `sms`, `whatsapp` and, until its
+ * slice lands, `push` do not, and a channel with no entry is recorded as
+ * `skipped` with a reason, which is why the registry is allowed to stay partial
+ * rather than being filled with stubs that pretend to send.
  */
 
 export interface OutgoingNotification {
@@ -24,11 +25,30 @@ export interface OutgoingNotification {
   /** Exactly one of these is set, matching the row. */
   readonly userId: string | null;
   readonly customerId: string | null;
+  /**
+   * Where this channel would send, when the channel has an address at all.
+   *
+   * Email needs it and Web Push does not: a push subscription is looked up by
+   * the target id, so the provider owns that lookup. Resolved by the dispatcher
+   * alongside the target rather than queried again inside the provider, so one
+   * order move costs one read per person instead of one per channel.
+   */
+  readonly address: string | null;
 }
 
 export interface ProviderResult {
   /** Whatever the provider calls the message. Null when it has no identifier. */
   readonly providerRef?: string | null;
+  /**
+   * Why this message was not sent, when the provider chose not to send it.
+   *
+   * Distinct from throwing, and the distinction is the point. A rider with no
+   * email on file is not a broken channel: it is one message that had nowhere to
+   * go, and marking it `failed` would put a permanent red mark on the admin's
+   * view for a normal fact about a person. The row is `skipped` and the reason is
+   * written into it.
+   */
+  readonly skippedReason?: string;
 }
 
 export interface NotificationProvider {
@@ -67,6 +87,7 @@ export const PROVIDERS: Readonly<
   Partial<Record<NotificationChannel, NotificationProvider>>
 > = {
   in_app: inAppProvider,
+  email: emailProvider,
 };
 
 export function providerFor(channel: NotificationChannel): NotificationProvider | null {

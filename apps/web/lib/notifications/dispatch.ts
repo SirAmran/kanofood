@@ -44,6 +44,18 @@ interface Target {
   readonly userId: string | null;
   /** Set for a guest customer. Never both, which the database also enforces. */
   readonly customerId: string | null;
+  /**
+   * Where email would send, when there is anywhere for it to go.
+   *
+   * Resolved here, in the read that already finds the person, rather than inside
+   * the email provider: one order move costs one read per person instead of one
+   * more per channel, and the provider stays a pure sender.
+   *
+   * A customer is always `null`. There is no email column on a customer in this
+   * schema, and email is internal only (section 8), so a customer is never mailed
+   * on any status. Null is the honest value for that, not a gap to be filled.
+   */
+  readonly address: string | null;
 }
 
 type DispatchOrder = {
@@ -54,7 +66,9 @@ type DispatchOrder = {
   readonly kitchenId: string;
   readonly addressSnapshot: unknown;
   readonly kitchen: { readonly name: string };
-  readonly delivery: { readonly rider: { readonly userId: string } } | null;
+  readonly delivery: {
+    readonly rider: { readonly userId: string; readonly user: { readonly email: string | null } };
+  } | null;
 };
 
 /**
@@ -71,16 +85,21 @@ type DispatchOrder = {
  * request. Neither path ever throws at the caller.
  */
 export function queueOrderStatus(orderId: string, status: OrderStatus): void {
-  const run = (): Promise<void> =>
-    dispatchOrderStatus(orderId, status).catch((error: unknown) => {
-      // The only failure that reaches here is the database refusing to store the
-      // record of the attempt. Nothing can be written about that, so it is
-      // logged rather than swallowed.
-      console.error(
-        `[notifications] could not record dispatch for order ${orderId} at ${status}`,
-        error,
-      );
-    });
+  const run = async (): Promise<void> => {
+    const results = await Promise.allSettled([dispatchOrderStatus(orderId, status)]);
+
+    for (const result of results) {
+      if (result.status === "rejected") {
+        // The only failures reaching here are the database refusing to store a
+        // record of the attempt. Nothing can be written about that, so it is
+        // logged rather than swallowed.
+        console.error(
+          `[notifications] could not record dispatch for order ${orderId} at ${status}`,
+          result.reason,
+        );
+      }
+    }
+  };
 
   try {
     after(run);
@@ -113,7 +132,9 @@ export async function dispatchOrderStatus(
       kitchenId: true,
       addressSnapshot: true,
       kitchen: { select: { name: true } },
-      delivery: { select: { rider: { select: { userId: true } } } },
+      delivery: {
+        select: { rider: { select: { userId: true, user: { select: { email: true } } } } },
+      },
     },
   });
 
@@ -172,10 +193,10 @@ async function resolveTargets(
     if (recipient === "admin") {
       const admins = await prisma.user.findMany({
         where: { role: "admin", isActive: true },
-        select: { id: true },
+        select: { id: true, email: true },
       });
       for (const admin of admins) {
-        targets.push({ recipient, userId: admin.id, customerId: null });
+        targets.push({ recipient, userId: admin.id, customerId: null, address: admin.email });
       }
       continue;
     }
@@ -183,21 +204,36 @@ async function resolveTargets(
     if (recipient === "kitchen") {
       const staff = await prisma.kitchenStaff.findMany({
         where: { kitchenId: order.kitchenId, user: { isActive: true } },
-        select: { userId: true },
+        select: { userId: true, user: { select: { email: true } } },
       });
       for (const member of staff) {
-        targets.push({ recipient, userId: member.userId, customerId: null });
+        targets.push({
+          recipient,
+          userId: member.userId,
+          customerId: null,
+          address: member.user.email,
+        });
       }
       continue;
     }
 
     if (recipient === "rider") {
-      const userId = order.delivery?.rider.userId;
-      if (userId) targets.push({ recipient, userId, customerId: null });
+      const rider = order.delivery?.rider;
+      if (rider) {
+        targets.push({
+          recipient,
+          userId: rider.userId,
+          customerId: null,
+          address: rider.user.email,
+        });
+      }
       continue;
     }
 
-    targets.push({ recipient, userId: null, customerId: order.customerId });
+    // The customer route reaches email on no status, so there is nothing to
+    // resolve; the address stays null and the dispatcher records a skip if a
+    // future edit ever routes email here.
+    targets.push({ recipient, userId: null, customerId: order.customerId, address: null });
   }
 
   return targets;
@@ -283,6 +319,20 @@ async function deliver(input: {
     return;
   }
 
+  /**
+   * Email with nowhere to go is a skip, not a failure.
+   *
+   * An admin, staff member or rider can exist with no email on file: a phone
+   * number was enough to create the account. Marking that `failed` would put a
+   * permanent red mark on the admin's view for an ordinary fact about a person,
+   * while the other channels for the same person still worked. The reason is
+   * written into the row instead, so the gap is visible without looking broken.
+   */
+  if (channel === "email" && target.address === null) {
+    await markSkipped(id, "No email address is on record for this person.");
+    return;
+  }
+
   try {
     const result = await provider.send({
       id,
@@ -291,7 +341,16 @@ async function deliver(input: {
       body: copy.body,
       userId: target.userId,
       customerId: target.customerId,
+      address: target.address,
     });
+
+    // The provider said, in words, why it did not send. That is a skip and not a
+    // failure: nothing broke, there was simply nowhere for this one to go.
+    if (result.skippedReason) {
+      await markSkipped(id, result.skippedReason);
+      return;
+    }
+
     await prisma.notification.updateMany({
       where: { id },
       data: {
