@@ -179,3 +179,27 @@ export function emailFrom(): string | null {
   return optional("EMAIL_FROM");
 }
 
+/**
+ * Web Push. ARCHITECTURE.md sections 8 and 11.
+ *
+ * The VAPID pair identifies this application to the browser's push service. The
+ * subject is the contact address a push service can use if this sender
+ * misbehaves; web-push requires a `mailto:` or `https:` value, so the fallback
+ * is a local address rather than an empty string that would throw at send time.
+ *
+ * Empty keys mean no push can be sent, which is the same inert state email has.
+ * The public key is also served to the browser so it can subscribe, so it is
+ * read on a request path and must not throw when absent.
+ */
+export function pushVapidPublicKey(): string | null {
+  return optional("PUSH_VAPID_PUBLIC_KEY");
+}
+
+export function pushVapidPrivateKey(): string | null {
+  return optional("PUSH_VAPID_PRIVATE_KEY");
+}
+
+export function pushVapidSubject(): string {
+  return optional("PUSH_VAPID_SUBJECT") ?? "mailto:notifications@kanofood.local";
+}
+

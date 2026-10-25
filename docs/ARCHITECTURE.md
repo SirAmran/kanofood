@@ -237,6 +237,9 @@ patterns are known and REST caches better on the mobile networks this targets.
 /api/v1/kitchen/...                auth: kitchen_staff
 /api/v1/rider/...                  auth: rider
 /api/v1/admin/...                  auth: admin
+/api/v1/notifications              GET this person's in-app inbox
+/api/v1/notifications/read         POST mark some or all of it read
+/api/v1/notifications/subscriptions  POST register this browser for push, DELETE forget it
 ```
 
 Every handler runs the same pipeline: authenticate, authorise by role, validate
@@ -297,6 +300,27 @@ is down still succeeds.
 
 Admin is notified immediately on every new order. Kitchen is notified when an
 order needs its action. Customer notifications are added where practical.
+
+**Built in Phase 9.** Nine statuses route, four are deliberately silent, and the
+copy sits beside the routing in `packages/core/src/notifications.ts`, keyed by
+status so a new status without a decision is a compile error. Dispatch runs after
+the response (`after()`), one row per party and channel, written before any
+provider is touched, with a unique `dedupe_key` so a retried request cannot say
+the same thing twice.
+
+- **In-app** is the row itself and the bell reads it.
+- **Email** is Resend over its HTTP API; internal only, and a person with no
+  address on file is `skipped` rather than `failed`.
+- **Push** is Web Push through `web-push`, with a subscription registered from the
+  browser and an endpoint the push service reports as gone (404 or 410) deleted
+  rather than retried forever.
+- **SMS and WhatsApp** have no provider. A channel with no provider is recorded as
+  `skipped` with a reason, not hidden.
+
+Every channel is inert until its keys are set, and every attempt is a row whatever
+happens. The client half of push (manifest, service worker, subscribe button) is
+built and has **never run in a browser**: there is no browser driver on this
+machine yet, so what is proven is the endpoints and the server render.
 
 ## 9. Storage
 
@@ -371,6 +395,7 @@ EMAIL_PROVIDER_KEY
 EMAIL_FROM
 PUSH_VAPID_PUBLIC_KEY
 PUSH_VAPID_PRIVATE_KEY
+PUSH_VAPID_SUBJECT        mailto: or https: contact for the push service
 STORAGE_PROVIDER
 STORAGE_KEY
 STORAGE_SECRET

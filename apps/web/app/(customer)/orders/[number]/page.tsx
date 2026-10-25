@@ -1,14 +1,20 @@
 import type { Metadata } from "next";
 
-import { platformPhone } from "@/lib/env";
+import { platformPhone, pushVapidPublicKey } from "@/lib/env";
 
 import { OrderView } from "../../_components/order-view";
+import { PushSubscribe } from "../../_components/push-subscribe";
 
 /**
  * Screens 4.10 and 4.11. The order number is the address; the credential is
  * not. See the note at the top of the view for why the token stays in storage
  * and out of the link. `?placed=1` is the confirmation; without it this is
  * tracking.
+ *
+ * The push control is mounted here rather than in the view because it reads its
+ * own credential from this browser's storage and needs no state from the view.
+ * It sits under the order: an offer to be told when the food moves only makes
+ * sense once somebody is waiting on it.
  */
 
 interface PageProps {
@@ -23,12 +29,16 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function OrderPage({ params, searchParams }: PageProps) {
   const [{ number }, { placed }] = await Promise.all([params, searchParams]);
+  const orderNumber = number.toUpperCase();
 
   return (
-    <OrderView
-      orderNumber={number.toUpperCase()}
-      placed={placed === "1"}
-      platformPhone={platformPhone()}
-    />
+    <>
+      <OrderView
+        orderNumber={orderNumber}
+        placed={placed === "1"}
+        platformPhone={platformPhone()}
+      />
+      <PushSubscribe orderNumber={orderNumber} vapidPublicKey={pushVapidPublicKey()} />
+    </>
   );
 }

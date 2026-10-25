@@ -1,6 +1,7 @@
 import type { NotificationChannel } from "@kanofood/core";
 
 import { emailProvider } from "./email";
+import { pushProvider } from "./push";
 
 /**
  * One channel's way of sending. docs/ARCHITECTURE.md section 8: "one interface,
@@ -10,10 +11,10 @@ import { emailProvider } from "./email";
  * the record of the attempt rather than a side effect of it. That ordering is
  * what makes a notification that never left the building visible.
  *
- * Two of the five channels have a provider. `sms`, `whatsapp` and, until its
- * slice lands, `push` do not, and a channel with no entry is recorded as
- * `skipped` with a reason, which is why the registry is allowed to stay partial
- * rather than being filled with stubs that pretend to send.
+ * Three of the five channels have a provider. `sms` and `whatsapp` do not, and a
+ * channel with no entry is recorded as `skipped` with a reason, which is why the
+ * registry is allowed to stay partial rather than being filled with stubs that
+ * pretend to send.
  */
 
 export interface OutgoingNotification {
@@ -88,6 +89,7 @@ export const PROVIDERS: Readonly<
 > = {
   in_app: inAppProvider,
   email: emailProvider,
+  push: pushProvider,
 };
 
 export function providerFor(channel: NotificationChannel): NotificationProvider | null {
