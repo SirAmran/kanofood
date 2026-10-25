@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
-import { platformPhone, pushVapidPublicKey } from "@/lib/env";
+import { pushVapidPublicKey } from "@/lib/env";
+import { loadPlatformContact } from "@/lib/settings/platform";
 
 import { OrderView } from "../../_components/order-view";
 import { PushSubscribe } from "../../_components/push-subscribe";
@@ -30,13 +31,14 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function OrderPage({ params, searchParams }: PageProps) {
   const [{ number }, { placed }] = await Promise.all([params, searchParams]);
   const orderNumber = number.toUpperCase();
+  const contact = await loadPlatformContact();
 
   return (
     <>
       <OrderView
         orderNumber={orderNumber}
         placed={placed === "1"}
-        platformPhone={platformPhone()}
+        platformPhone={contact.phone}
       />
       <PushSubscribe orderNumber={orderNumber} vapidPublicKey={pushVapidPublicKey()} />
     </>

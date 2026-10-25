@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { platformPhone } from "@/lib/env";
+import { loadPlatformContact } from "@/lib/settings/platform";
 
 import { CheckoutView } from "../_components/checkout-view";
 
@@ -8,6 +8,8 @@ import { CheckoutView } from "../_components/checkout-view";
 
 export const metadata: Metadata = { title: "Checkout" };
 
-export default function CheckoutPage() {
-  return <CheckoutView platformPhone={platformPhone()} />;
+export default async function CheckoutPage() {
+  const contact = await loadPlatformContact();
+
+  return <CheckoutView platformPhone={contact.phone} />;
 }

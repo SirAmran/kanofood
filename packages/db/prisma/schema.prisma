@@ -188,8 +188,44 @@ model User {
   settlementsPaid KitchenSettlement[] @relation("SettlementPaidBy")
   notifications   Notification[]
   pushSubscriptions PushSubscription[]
+  platformSettings PlatformSetting[]
 
   @@map("users")
+}
+
+/// The one row of platform-level configuration an operator can change without a
+/// deploy. Section 7.12 asks for an editable settings screen and Phase 5 shipped
+/// it read only because there was no table to write to; this is that table.
+///
+/// **A singleton, and the only `Int` primary key in this schema.** Every other
+/// table uses a UUID because every other table has many rows. This one is one
+/// row of platform settings, so a second row is a question nobody wants to
+/// answer at nine in the evening: the id is pinned to 1 by a CHECK constraint in
+/// the migration, which Prisma cannot express and which is flagged there.
+///
+/// **What is deliberately not here.** Branding, session lifetimes, storage and
+/// the notification provider keys all stay in the environment. They are
+/// deploy-time facts: the process reads them at startup, a layout renders a name
+/// that cannot change under it, and a key that a screen could rewrite is a
+/// credential with a form attached. Putting them in a table would move the value
+/// without moving the moment it is read, which makes a screen that appears to
+/// work and reverts on the next request.
+///
+/// The contact numbers are the exception because they are read on a request path
+/// and change for operational reasons: a number that customers cannot reach is
+/// the reason a launch stops, and changing it should not need a deploy.
+model PlatformSetting {
+  id               Int      @id @default(1)
+  platformPhone    String?  @map("platform_phone")
+  platformWhatsapp String?  @map("platform_whatsapp")
+  updatedByUserId  String?  @map("updated_by_user_id") @db.Uuid
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  updatedBy User? @relation(fields: [updatedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([updatedByUserId])
+  @@map("platform_settings")
 }
 
 /// Refresh tokens are stored hashed and rotated on every use. Section 7. Neither

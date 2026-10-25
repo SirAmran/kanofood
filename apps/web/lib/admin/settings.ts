@@ -1,30 +1,33 @@
 import { prisma } from "@kanofood/db";
 
+import { platformPhone as envPhone, platformWhatsApp as envWhatsApp } from "../env";
+import { loadPlatformContact } from "../settings/platform";
+
 /**
  * Settings. Screen 7.12.
  *
- * **This screen reads. It does not write, and that is a gap rather than a
- * decision.** Section 7.12 asks for editable delivery zone defaults, order
- * confirmation mode, notification toggles, a platform phone number and
- * branding. Three things stand in the way of that as written:
+ * **The table exists now, and only the part that belongs in one is editable.**
+ * Phase 5 shipped this screen read only because the schema had nineteen models
+ * and none held a platform-level value. `platform_settings` closes that, and the
+ * contact numbers are editable through it.
  *
- *   1. **There is no settings table.** The schema has nineteen models and none of
- *      them holds a platform-level setting. Branding currently lives in `.env`
- *      (`BRAND_NAME`, `BRAND_TAGLINE`, `BRAND_LOGO_URL`, `BRAND_FAVICON_URL`,
- *      `BRAND_COLOR_PRIMARY`, `BRAND_COLOR_ACCENT`), read at module scope in the
- *      root layout and the admin shell.
- *   2. **`.env` is not writable at runtime**, and should not be: a screen that
- *      rewrites the process environment is a screen that appears to work and
- *      reverts on the next deploy, which is worse than one that says it cannot.
- *   3. **There is no platform phone number anywhere**, in the schema or in the
- *      environment. Giving it one is a product decision about where it is shown,
- *      not a form field.
+ * What stays read only is not unfinished: it is configuration the running
+ * process already read.
  *
- * So this screen shows every value that is actually in effect and where each one
- * comes from, which is the half of 7.12 that can be built honestly today. Making
- * it editable needs a `PlatformSetting` table and a migration against the live
- * database, and that is the project owner's call rather than a side effect of
- * building a screen. It is reported with the other spec gaps.
+ *   1. Branding lives in `.env` (`BRAND_NAME`, `BRAND_TAGLINE`, `BRAND_LOGO_URL`,
+ *      `BRAND_FAVICON_URL`, `BRAND_COLOR_PRIMARY`, `BRAND_COLOR_ACCENT`) and is
+ *      read at module scope by the root layout, the three shells and the
+ *      manifest. A form that wrote a row instead would change a value nothing
+ *      reads until the process restarts.
+ *   2. Session lifetimes, storage and the notification provider keys are read at
+ *      startup, and a key a screen can rewrite is a credential with a form
+ *      attached.
+ *   3. Confirmation mode, auto-cancel and per-event notification toggles are not
+ *      implemented at all. A switch that stores a value nothing consults is
+ *      worse than no switch.
+ *
+ * So the screen shows every value that is actually in effect, says where each one
+ * comes from, and edits the two that a customer's ability to order depends on.
  * ===========================================================================
  */
 
@@ -46,6 +49,23 @@ export interface SettingGroup {
 
 export interface SettingsView {
   readonly groups: readonly SettingGroup[];
+  /**
+   * The values an operator can actually change, and what surrounds them.
+   *
+   * `stored` is what the table holds and is what the form edits. `env` is the
+   * fallback and is shown beside it so clearing a field is not a leap of faith:
+   * an empty box means "use the host's value", and the host's value is on screen.
+   */
+  readonly contact: {
+    readonly phone: string | null;
+    readonly whatsapp: string | null;
+    readonly storedPhone: string | null;
+    readonly storedWhatsapp: string | null;
+    readonly envPhone: string | null;
+    readonly envWhatsapp: string | null;
+    readonly source: "database" | "environment";
+    readonly readFromDatabase: boolean;
+  };
   readonly deliveryZones: readonly {
     readonly id: string;
     readonly name: string;
@@ -78,18 +98,21 @@ function presence(value: string | undefined): string {
 export async function loadSettings(): Promise<SettingsView> {
   const defaultZoneSlug = process.env.DELIVERY_DEFAULT_ZONE?.trim() || null;
 
-  const zones = await prisma.deliveryZone.findMany({
-    orderBy: [{ priority: "desc" }, { name: "asc" }],
-    select: {
-      id: true,
-      name: true,
-      slug: true,
-      isActive: true,
-      baseFeeKobo: true,
-      paymentRequirement: true,
-      _count: { select: { feeRules: true } },
-    },
-  });
+  const [contact, zones] = await Promise.all([
+    loadPlatformContact(),
+    prisma.deliveryZone.findMany({
+      orderBy: [{ priority: "desc" }, { name: "asc" }],
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        isActive: true,
+        baseFeeKobo: true,
+        paymentRequirement: true,
+        _count: { select: { feeRules: true } },
+      },
+    }),
+  ]);
 
   const deliveryZones = zones.map((zone) => ({
     id: zone.id,
@@ -283,6 +306,16 @@ export async function loadSettings(): Promise<SettingsView> {
 
   return {
     groups,
+    contact: {
+      phone: contact.phone,
+      whatsapp: contact.whatsapp,
+      storedPhone: contact.storedPhone,
+      storedWhatsapp: contact.storedWhatsapp,
+      envPhone: envPhone(),
+      envWhatsapp: envWhatsApp(),
+      source: contact.source,
+      readFromDatabase: contact.readFromDatabase,
+    },
     deliveryZones,
     defaultZoneSlug,
     defaultZoneMissing:

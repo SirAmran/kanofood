@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { platformPhone } from "@/lib/env";
+import { loadPlatformContact } from "@/lib/settings/platform";
 
 import { CancelView } from "../../../_components/cancel-view";
 
@@ -20,6 +20,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function CancelOrderPage({ params }: PageProps) {
   const { number } = await params;
+  const contact = await loadPlatformContact();
 
-  return <CancelView orderNumber={number.toUpperCase()} platformPhone={platformPhone()} />;
+  return <CancelView orderNumber={number.toUpperCase()} platformPhone={contact.phone} />;
 }

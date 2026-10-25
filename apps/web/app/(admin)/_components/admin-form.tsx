@@ -43,6 +43,16 @@ export interface AdminField {
   readonly rows?: number;
   /** A read-only field is shown but not sent, for a value that cannot change. */
   readonly readOnly?: boolean;
+  /**
+   * Send an empty string when the box is empty, rather than omitting the field.
+   *
+   * An omitted field means "leave it alone" and an empty one means "clear it", so
+   * a field whose empty state is a real answer (a contact number falling back to
+   * the environment, a cleared map pin) has to say so. Without this the clear
+   * never reaches the API and the old value survives an edit that visibly
+   * removed it.
+   */
+  readonly sendEmpty?: boolean;
 }
 
 /** What the API's validation failure looks like, so it can be routed to a field. */
@@ -123,7 +133,7 @@ export function AdminForm({
         body[field.name] = value === true;
       } else if (typeof value === "string" && value.trim() !== "") {
         body[field.name] = value;
-      } else if (field.required) {
+      } else if (field.required || field.sendEmpty) {
         body[field.name] = "";
       }
     }
