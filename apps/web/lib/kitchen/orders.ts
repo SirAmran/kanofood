@@ -9,6 +9,7 @@ import {
 } from "@kanofood/core";
 
 import { ApiError } from "../api/http";
+import { queueOrderStatus } from "../notifications/dispatch";
 import { statusTimestamps } from "../order-timestamps";
 
 /**
@@ -404,7 +405,7 @@ export async function transitionKitchenOrder(input: KitchenTransitionInput): Pro
   const at = new Date();
   const note = input.note?.trim() || null;
 
-  return prisma.$transaction(async (tx) => {
+  const committedAt = await prisma.$transaction(async (tx) => {
     const moved = await tx.order.updateMany({
       where: {
         id: input.orderId,
@@ -437,4 +438,10 @@ export async function transitionKitchenOrder(input: KitchenTransitionInput): Pro
 
     return at;
   });
+
+  // Section 4's "order arrives (notified)": the kitchen hears at CONFIRMED, and
+  // a rejection or a cancellation tells whoever is on the other side of it.
+  queueOrderStatus(input.orderId, input.to);
+
+  return committedAt;
 }

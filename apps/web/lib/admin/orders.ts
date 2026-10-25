@@ -4,6 +4,7 @@ import type { OrderStatus } from "@kanofood/core";
 import { Prisma, prisma } from "@kanofood/db";
 
 
+import { queueOrderStatus } from "../notifications/dispatch";
 import { statusTimestamps } from "../order-timestamps";
 import { lagosDayStartDaysAgo } from "./status";
 
@@ -446,7 +447,7 @@ export async function transitionOrder(input: TransitionInput): Promise<Date> {
 
   const at = input.at ?? new Date();
 
-  return prisma.$transaction(async (tx) => {
+  const committedAt = await prisma.$transaction(async (tx) => {
     const moved = await tx.order.updateMany({
       // The guard. Not decoration: this is the only thing preventing two
       // operators from both acting on the same order.
@@ -490,6 +491,10 @@ export async function transitionOrder(input: TransitionInput): Promise<Date> {
 
     return at;
   });
+
+  queueOrderStatus(input.orderId, input.to);
+
+  return committedAt;
 }
 
 /**
@@ -566,6 +571,9 @@ export async function assignRider(input: {
       },
     });
   });
+
+  // The rider hears they have a job and the customer hears who is carrying it.
+  queueOrderStatus(input.orderId, "RIDER_ASSIGNED");
 }
 
 /** Whether this order can still be moved at all. Terminal states cannot. */

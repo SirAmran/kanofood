@@ -14,6 +14,7 @@ import type { PaymentMethod } from "@kanofood/db";
 
 import { ApiError } from "../api/http";
 import { signOrderToken, verifyOrderToken } from "../auth/tokens";
+import { queueOrderStatus } from "../notifications/dispatch";
 import { loadActiveZones } from "../zones";
 
 /**
@@ -387,6 +388,12 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlacedOrder> {
 
       const token = await signOrderToken({ orderNumber: order.orderNumber });
 
+      // Section 9: a submitted order lands in PENDING_CONFIRMATION and the admin
+      // is notified, because the confirmation call is what turns it into an
+      // order. Queued, not awaited: the customer's confirmation screen must not
+      // wait on a mail server.
+      queueOrderStatus(order.id, "PENDING_CONFIRMATION");
+
       return {
         id: order.id,
         orderNumber: order.orderNumber,
@@ -710,6 +717,8 @@ export async function cancelOrder(input: {
       },
     });
   }, TRANSACTION);
+
+  queueOrderStatus(order.id, "CUSTOMER_CANCELLED");
 
   return { status: "CUSTOMER_CANCELLED", at };
 }

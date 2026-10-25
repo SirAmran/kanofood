@@ -11,6 +11,7 @@ import {
 
 import { ApiError } from "../api/http";
 import { lagosDayStartDaysAgo } from "../admin/status";
+import { queueOrderStatus } from "../notifications/dispatch";
 import { statusTimestamps } from "../order-timestamps";
 
 /**
@@ -567,6 +568,10 @@ export async function transitionRiderDelivery(input: RiderTransitionInput): Prom
     // is correct; the default was too tight for it.
     { timeout: 20000, maxWait: 10000 },
   );
+
+  // Out for delivery and delivered both tell the customer; a failure tells the
+  // admin and the customer, with the rider's stated reason attached.
+  queueOrderStatus(input.orderId, input.to);
 
   return at;
 }
