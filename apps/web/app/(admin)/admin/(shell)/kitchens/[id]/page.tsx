@@ -197,12 +197,13 @@ export default async function KitchenDetailPage({ params }: { params: Promise<{ 
               },
               {
                 name: "lat",
-                label: "Latitude",
-                type: "number",
+                label: "Location",
+                type: "map",
                 value: kitchen.lat,
+                lngField: "lng",
+                lngValue: kitchen.lng,
                 hint: "Every delivery fee is measured from this pin, so a kitchen without one can only be priced at its zone's flat fee. Clear both to say the position is unknown.",
               },
-              { name: "lng", label: "Longitude", type: "number", value: kitchen.lng },
               { name: "description", label: "Description", type: "textarea", rows: 4, value: kitchen.description ?? "" },
               {
                 name: "slug",

@@ -5,6 +5,8 @@ import { useState } from "react";
 
 import { Alert, Button, Field, Input, Select, Stack, Switch, Textarea, useToast } from "@kanofood/ui";
 
+import { MapPicker } from "@/components/map-picker";
+
 /**
  * The admin form.
  *
@@ -28,7 +30,8 @@ export type AdminFieldType =
   | "date"
   | "textarea"
   | "select"
-  | "switch";
+  | "switch"
+  | "map";
 
 export interface AdminField {
   readonly name: string;
@@ -36,6 +39,17 @@ export interface AdminField {
   readonly type: AdminFieldType;
   /** The starting value. A switch is on when this is `true`. */
   readonly value?: string | number | boolean | null;
+  /**
+   * For type `"map"`: the name of the field that carries the longitude.
+   *
+   * A map is one control and two columns, and the API validates them as a pair
+   * under `lat` and `lng`. The map field's own `name` is the latitude and this
+   * names the longitude, so a screen describes one field and the form submits
+   * two, without either screen hand-rolling the pairing.
+   */
+  readonly lngField?: string;
+  /** For type `"map"`: the starting longitude. See `lngField`. */
+  readonly lngValue?: string | number | null;
   readonly options?: readonly { readonly value: string; readonly label: string }[];
   readonly hint?: string;
   readonly placeholder?: string;
@@ -74,6 +88,32 @@ function initial(field: AdminField): string | boolean {
   return String(field.value);
 }
 
+/**
+ * The starting values, including the longitude a map field names but does not
+ * describe. Without this the pair would submit empty on a screen that has a pin.
+ */
+function initialValues(fields: readonly AdminField[]): Record<string, string | boolean> {
+  return Object.fromEntries(
+    fields.flatMap((field) => {
+      const entries: [string, string | boolean][] = [[field.name, initial(field)]];
+      if (field.type === "map" && field.lngField) {
+        entries.push([
+          field.lngField,
+          field.lngValue === null || field.lngValue === undefined ? "" : String(field.lngValue),
+        ]);
+      }
+      return entries;
+    }),
+  );
+}
+
+/** A map hands back numbers; the form holds strings, because that is what a field submits. */
+function numberOrNull(value: string | boolean | undefined): number | null {
+  if (typeof value !== "string" || value.trim() === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 export function AdminForm({
   action,
   method = "POST",
@@ -89,7 +129,7 @@ export function AdminForm({
   const toast = useToast();
 
   const [values, setValues] = useState<Record<string, string | boolean>>(() =>
-    Object.fromEntries(fields.map((field) => [field.name, initial(field)])),
+    initialValues(fields),
   );
   const [issues, setIssues] = useState<readonly FieldIssue[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -121,6 +161,15 @@ export function AdminForm({
       const value = values[field.name];
       if (field.type === "switch") {
         body[field.name] = value === true;
+      } else if (field.type === "map") {
+        // A coordinate pair goes together and an empty string is a real answer:
+        // it is how a pin is cleared. Omitting them instead would leave the old
+        // point on the record after a save that visibly removed it.
+        body[field.name] = typeof value === "string" ? value.trim() : "";
+        if (field.lngField) {
+          const lng = values[field.lngField];
+          body[field.lngField] = typeof lng === "string" ? lng.trim() : "";
+        }
       } else if (typeof value === "string" && value.trim() !== "") {
         body[field.name] = value;
       } else if (field.required) {
@@ -180,6 +229,34 @@ export function AdminForm({
                 checked={value === true}
                 onChange={(event) => set(field.name, event.target.checked)}
               />
+            );
+          }
+
+          if (field.type === "map") {
+            return (
+              <Field
+                key={field.name}
+                label={field.label}
+                hint={field.hint}
+                error={
+                  errorText ?? (field.lngField ? issueFor(field.lngField) : undefined)
+                }
+              >
+                <MapPicker
+                  lat={numberOrNull(value)}
+                  lng={numberOrNull(field.lngField ? values[field.lngField] : undefined)}
+                  label={field.label}
+                  onChange={(point) => {
+                    if (point === null) {
+                      set(field.name, "");
+                      if (field.lngField) set(field.lngField, "");
+                      return;
+                    }
+                    set(field.name, String(point.lat));
+                    if (field.lngField) set(field.lngField, String(point.lng));
+                  }}
+                />
+              </Field>
             );
           }
 

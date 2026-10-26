@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { formatNaira } from "@kanofood/core";
 import { Alert, Button } from "@kanofood/ui";
 
+import { MapPicker } from "@/components/map-picker";
 import {
   LOCATION_COOKIE,
   LOCATION_MAX_AGE_SECONDS,
@@ -19,11 +20,11 @@ import { fetchQuote, type DeliveryQuote } from "./storefront-api";
 /**
  * Screen 4.8, the delivery location.
  *
- * A map with a draggable pin is the spec'd answer and is not built: the map
- * decision is still open with Yoyo, so this screen does not pretend. It offers
- * the browser's location and a typed point, and it is honest on the page about
- * what is missing. When the map lands it replaces the coordinate fields, not the
- * rest of the screen.
+ * A draggable pin on a map, built in Phase 10 on Leaflet and OpenStreetMap tiles.
+ * The map enhances the screen rather than gatekeeping it: the browser's location
+ * button, the typed point and the address text all work with the map's chunk
+ * blocked, and the pin writes into the same two coordinates the rest of the
+ * screen already used.
  *
  * The address text is what a rider actually uses, so it is required even when
  * the point is exact. Landmark and instructions are optional but are carried on
@@ -266,31 +267,20 @@ export function LocationView({
           <fieldset className="sf-coords">
             <legend className="kf-label">Delivery point</legend>
             <p className="sf-field__hint">
-              A map picker is not built yet. Use your current location, or type the latitude and
-              longitude if you have them.
+              Tap the map to drop the pin, or use your current location. The pin is where delivery
+              is priced from; the address text above is what the rider reads.
             </p>
-            <div className="sf-form__row">
-              <label className="kf-field">
-                <span className="kf-label">Latitude</span>
-                <input
-                  className="kf-input"
-                  inputMode="decimal"
-                  value={latText}
-                  onChange={(event) => setLatText(event.target.value)}
-                  placeholder="12.0022"
-                />
-              </label>
-              <label className="kf-field">
-                <span className="kf-label">Longitude</span>
-                <input
-                  className="kf-input"
-                  inputMode="decimal"
-                  value={lngText}
-                  onChange={(event) => setLngText(event.target.value)}
-                  placeholder="8.5919"
-                />
-              </label>
-            </div>
+            <MapPicker
+              lat={point?.lat ?? null}
+              lng={point?.lng ?? null}
+              label="Delivery point"
+              height={320}
+              withInputs={false}
+              onChange={(nextPoint) => {
+                setLatText(nextPoint === null ? "" : String(nextPoint.lat));
+                setLngText(nextPoint === null ? "" : String(nextPoint.lng));
+              }}
+            />
           </fieldset>
 
           {quote.status === "checking" ? (

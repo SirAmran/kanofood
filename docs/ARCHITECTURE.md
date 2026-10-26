@@ -428,6 +428,17 @@ Leaflet. Free, no API key, no per-load billing, and a pin is a better fit for
 landmark addressing than a geocoder that expects street addresses. Google Maps is
 a paid service and would need explicit approval.
 
+Built in Phase 10 as one component (`apps/web/components/map-picker.tsx`) used by
+four screens: the customer's delivery point (4.8), the admin's kitchen pin (7.4
+and the add-kitchen form), and a kitchen setting its own pin (5.7). Three details
+are decisions rather than defaults. The pin is a CSS `divIcon`, because Leaflet's
+default marker is a PNG resolved by URL out of the package, which bundlers rewrite
+and a strict content policy refuses. Leaflet is imported inside an effect, so the
+server never evaluates it and the chunk arrives only on a screen with a map on it,
+and a failed import leaves the typed fields and the GPS button working. And there
+is no address search: it needs a self-hosted Nominatim, because the public
+instance forbids production use, and there is no host for one yet.
+
 **AI assistance.** Read-only analytical access is designed for, never write
 access to money or order state. Exposed as a reporting API surface so an agent
 can produce daily reports, cancellation analysis, delivery-time analysis and

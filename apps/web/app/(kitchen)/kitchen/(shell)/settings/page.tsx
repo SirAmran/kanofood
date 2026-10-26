@@ -144,8 +144,15 @@ export default async function KitchenSettingsPage() {
                 value: kitchen.prepTimeMinutes ?? "",
                 hint: "Used to tell customers roughly when to expect their food.",
               },
-              { name: "lat", label: "Latitude", type: "number", value: kitchen.lat ?? "" },
-              { name: "lng", label: "Longitude", type: "number", value: kitchen.lng ?? "" },
+              {
+                name: "lat",
+                label: "Where riders collect",
+                type: "map",
+                value: kitchen.lat ?? "",
+                lngField: "lng",
+                lngValue: kitchen.lng ?? "",
+                hint: "The pin is what the platform prices delivery from. Clear both to say the position is unknown.",
+              },
             ]}
           />
         </CardBody>
