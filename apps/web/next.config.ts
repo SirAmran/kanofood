@@ -26,6 +26,13 @@ const hostname = storageHostname();
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  /**
+   * Take security patches as they land, not the next time somebody remembers to
+   * look. A `next build` stops on an advisory that affects the installed version,
+   * and the only thing that clears it is upgrading, so the reminder belongs here
+   * rather than in a note nobody reads.
+   */
+  experimental: { agentUpgrade: "security" },
   // The workspace packages ship TypeScript source, so Next has to compile them.
   transpilePackages: ["@kanofood/core", "@kanofood/db", "@kanofood/ui"],
   /**
