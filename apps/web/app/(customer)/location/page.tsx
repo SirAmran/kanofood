@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
-import { platformPhone } from "@/lib/env";
 import { readSavedLocation } from "@/lib/public/location";
+import { loadPlatformContact } from "@/lib/settings/platform";
 
 import { LocationView } from "../_components/location-view";
 
@@ -22,8 +22,7 @@ export default async function LocationPage({
   const { next } = await searchParams;
   const initialPoint = await readSavedLocation();
   const target = typeof next === "string" && /^\/(?!\/)/.test(next) ? next : "/";
+  const contact = await loadPlatformContact();
 
-  return (
-    <LocationView initialPoint={initialPoint} next={target} platformPhone={platformPhone()} />
-  );
+  return <LocationView initialPoint={initialPoint} next={target} platformPhone={contact.phone} />;
 }

@@ -3,15 +3,16 @@ import Link from "next/link";
 
 import { Alert, buttonClass } from "@kanofood/ui";
 
-import { platformPhone, platformWhatsApp } from "@/lib/env";
+import { loadPlatformContact } from "@/lib/settings/platform";
 
 /**
  * Screen 4.13, help and contact.
  *
- * Static, and deliberately so: UX_SPEC says this screen has no loading state,
- * because a customer who needs help should not be waiting on a query to find a
- * phone number. Everything here is local content plus the two configured
- * contact channels.
+ * One query, and only for the two contact channels: UX_SPEC says this screen has
+ * no loading state, because a customer who needs help should not be waiting on a
+ * list of orders to find a phone number. The numbers themselves are the values
+ * an operator sets on the settings screen, with the environment as the fallback,
+ * and nothing else here is read from the database.
  *
  * At launch confirmation is a phone call, so the number is the page. When it is
  * not configured the page says that plainly rather than rendering a dead button,
@@ -65,9 +66,10 @@ const FAQ: readonly { readonly question: string; readonly answer: string }[] = [
   },
 ];
 
-export default function HelpPage() {
-  const phone = platformPhone();
-  const whatsapp = platformWhatsApp();
+export default async function HelpPage() {
+  const contact = await loadPlatformContact();
+  const phone = contact.phone;
+  const whatsapp = contact.whatsapp;
 
   return (
     <section className="sf-page sf-help">

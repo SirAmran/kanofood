@@ -141,6 +141,24 @@ Zone boundaries are stored as GeoJSON in `boundary`, with `delivery_fee_rules`
 providing distance tiers inside a zone. Nothing about ₦1,000 exists anywhere in
 code or schema. It is a row.
 
+**Platform**
+
+- `platform_settings` id (pinned to 1 by a CHECK), platform_phone,
+  platform_whatsapp, updated_by_user_id, created_at, updated_at
+
+One row, deliberately. It is the only `INTEGER` primary key in the schema,
+because every other table has many rows and this one is a singleton: a second
+row of platform settings is not a thing anybody wants to choose between. Prisma
+cannot express a CHECK constraint, so `id = 1` is enforced in the migration and
+flagged there, the same way the partial index is.
+
+What is not in it matters as much as what is. Branding, session lifetimes, the
+storage credentials and the notification provider keys stay in the environment
+(see 11): they are read at startup by process-level code, so a form that wrote a
+row would change a value nothing reads until the next restart. The contact
+numbers are the exception because they are read while a customer is on a page,
+and a number nobody answers is a reason a launch stops.
+
 **Orders**
 
 - `orders` id, order_number unique, customer_id, kitchen_id, status,

@@ -20,29 +20,23 @@ import {
   type Tone,
 } from "@kanofood/ui";
 
+import { AdminForm } from "@/app/(admin)/_components/admin-form";
 import { requireAdmin } from "@/lib/admin/session";
 import { loadSettings } from "@/lib/admin/settings";
 
 /**
  * Settings. Screen 7.12 in docs/UX_SPEC.md.
  *
- * **Read-only, and that is a decision rather than an unfinished screen.**
+ * **Editable where a table exists, read only where the process already read the
+ * value.** The contact numbers are operator settings now, stored in
+ * `platform_settings` and read on a request path. Branding, session lifetimes,
+ * storage and the notification keys are read at startup by process-level code,
+ * so writing them to a row would change a value nothing reads until the next
+ * restart, which is the version of this screen that lies.
  *
- * Three things block an editable version. There is no settings table: the schema
- * has nineteen models and not one of them holds a platform-level value. `.env` is
- * not writable at runtime, and even if it were, editing it would change what the
- * next process reads and not what this one is running. And there is no platform
- * phone number anywhere in the repository to edit.
- *
- * Writing any of those would mean either migrating the live database or storing
- * a value in a place that lies about where it came from. So this screen shows the
- * values actually in effect, says where each one comes from, and puts the
- * editable version where it belongs: a settings table, in a phase that can
- * migrate the database deliberately.
- *
- * What it is genuinely useful for today is answering "what is this deployment
- * actually configured to do", which is otherwise a question about environment
- * variables nobody can see from the interface.
+ * The rest of the page is the honest half and stays useful: it answers "what is
+ * this deployment actually configured to do", which is otherwise a question about
+ * environment variables nobody can see from the interface.
  */
 
 export const metadata: Metadata = { title: "Settings" };
@@ -69,10 +63,104 @@ export default async function SettingsPage() {
       <PageHeader title="Settings" sub="What this deployment is configured to do." />
 
       <Alert tone="info">
-        Read only. These values come from the environment this process started with and from the database, so an
-        editable form here would either lie about where a value lives or change it somewhere nothing else can see.
-        An editable screen needs a settings table, which does not exist yet.
+        The contact numbers below are the only settings an operator changes here. Everything else on this
+        page is read from the environment this process started with, or is fixed in the code, so it is
+        shown rather than offered as a form: writing it to a table would change a value nothing reads
+        until the next restart.
       </Alert>
+
+      {!settings.contact.readFromDatabase ? (
+        <Alert tone="warning">
+          The settings table could not be read, so the numbers below are the host's environment values.
+          Saving will try the table again.
+        </Alert>
+      ) : null}
+
+      <Card>
+        <CardHeader
+          title="Public contact numbers"
+          action={
+            <Badge tone={settings.contact.source === "database" ? "success" : "accent"}>
+              {settings.contact.source === "database" ? "Database" : "Environment"}
+            </Badge>
+          }
+        />
+        <CardBody>
+          <Stack>
+            <p className="kf-muted">
+              Printed on the storefront, the delivery location screen, checkout, tracking and help.
+              Confirmation is a phone call, so a customer who cannot reach these cannot order.
+            </p>
+
+            <TableWrap>
+              <Table>
+                <thead>
+                  <tr>
+                    <Th>Channel</Th>
+                    <Th>In effect</Th>
+                    <Th>From</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <Td label="Channel">Phone</Td>
+                    <Td label="In effect">
+                      {settings.contact.phone ?? <span className="kf-muted">Not published</span>}
+                    </Td>
+                    <Td label="From">
+                      <Badge tone={settings.contact.storedPhone ? "success" : "accent"}>
+                        {settings.contact.storedPhone ? "Settings table" : "Environment"}
+                      </Badge>
+                    </Td>
+                  </tr>
+                  <tr>
+                    <Td label="Channel">WhatsApp</Td>
+                    <Td label="In effect">
+                      {settings.contact.whatsapp ?? <span className="kf-muted">Not published</span>}
+                    </Td>
+                    <Td label="From">
+                      <Badge tone={settings.contact.storedWhatsapp ? "success" : "accent"}>
+                        {settings.contact.storedWhatsapp ? "Settings table" : "Environment"}
+                      </Badge>
+                    </Td>
+                  </tr>
+                </tbody>
+              </Table>
+            </TableWrap>
+
+            <AdminForm
+              action="/api/v1/admin/settings"
+              method="PATCH"
+              submitLabel="Save contact numbers"
+              successMessage="Contact numbers saved."
+              fields={[
+                {
+                  name: "platformPhone",
+                  label: "Platform phone",
+                  type: "text",
+                  value: settings.contact.storedPhone ?? "",
+                  sendEmpty: true,
+                  placeholder: "+234 800 000 0000",
+                  hint: settings.contact.envPhone
+                    ? `Leave it empty to use the host value, ${settings.contact.envPhone}.`
+                    : "Leave it empty to hide the phone line. Nothing is configured on the host either.",
+                },
+                {
+                  name: "platformWhatsapp",
+                  label: "WhatsApp number",
+                  type: "text",
+                  value: settings.contact.storedWhatsapp ?? "",
+                  sendEmpty: true,
+                  placeholder: "+234 800 000 0000",
+                  hint: settings.contact.envWhatsapp
+                    ? `Leave it empty to use the host value, ${settings.contact.envWhatsapp}.`
+                    : "Leave it empty to hide the WhatsApp line.",
+                },
+              ]}
+            />
+          </Stack>
+        </CardBody>
+      </Card>
 
       {missing.length > 0 ? (
         <Alert tone="warning">
