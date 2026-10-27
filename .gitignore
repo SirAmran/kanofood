@@ -21,6 +21,10 @@ build/
 .env
 .env.local
 .env.*.local
+# A backup of `.env` carries the same secrets as `.env` itself. One was made on
+# 2026-10-27 before the Sheets variables were written and it was untracked but
+# not ignored, which is one `git add -A` away from publishing the webhook token.
+.env.bak-*
 !.env.example
 
 # Prisma
