@@ -10,13 +10,14 @@ import type { MetadataRoute } from "next";
  * variable changed. This route is the same read as `app/layout.tsx`, one call
  * later.
  *
- * **No icons, and that is a gap rather than a decision.** Chrome will not offer
- * "install" without at least a 192px and a 512px icon, and iOS will not deliver a
- * push to a site that has not been added to the home screen, so shipping a
- * manifest with a placeholder dish picture would buy an install prompt with the
- * wrong face on a customer's home screen. What is needed is a brand icon pair in
- * `public/`; until then push works in an open browser tab on Android and desktop
- * and not on an installed iOS app.
+ * **The icons are drawn from the brand, not committed as PNGs.** Chrome will not
+ * offer "install" without a 192px and a 512px icon, and iOS will not deliver a
+ * push to a site that has not been added to the home screen, so a manifest with
+ * no icons made push worth nothing on an iPhone. The pair is generated at
+ * `/pwa-icon/192` and `/pwa-icon/512` from `BRAND_NAME` and
+ * `BRAND_COLOR_PRIMARY` (see `lib/brand-icon.tsx`), which keeps the "one place"
+ * rule this file already follows: a PNG in `public/` would go on saying the old
+ * name after a rebrand.
  */
 
 /** Blank is not configured. Same rule as `app/layout.tsx`, and for the same reason. */
@@ -42,5 +43,12 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: "#ffffff",
     background_color: "#ffffff",
     orientation: "portrait",
+    // Drawn by `app/pwa-icon/[size]/route.tsx`. `maskable` on the 512 is the
+    // same drawing: the letter sits inside the 80% safe circle Android crops to.
+    icons: [
+      { src: "/pwa-icon/192", sizes: "192x192", type: "image/png", purpose: "any" },
+      { src: "/pwa-icon/512", sizes: "512x512", type: "image/png", purpose: "any" },
+      { src: "/pwa-icon/512", sizes: "512x512", type: "image/png", purpose: "maskable" },
+    ],
   };
 }
