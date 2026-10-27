@@ -1,6 +1,13 @@
 import { z } from "zod";
 
-import { integerField, moneyField, requiredText, routeId, switchField } from "@/lib/api/schema";
+import {
+  boundaryField,
+  integerField,
+  moneyField,
+  requiredText,
+  routeId,
+  switchField,
+} from "@/lib/api/schema";
 import { staffRoute } from "@/lib/api/route";
 import { updateZone } from "@/lib/admin/zones";
 
@@ -10,12 +17,16 @@ import { updateZone } from "@/lib/admin/zones";
  * The slug is not editable. Section 11 defines `DELIVERY_DEFAULT_ZONE` as the
  * slug of a zone, so the slug is what configuration points at, and changing it
  * would silently repoint or break the default without touching either file.
+ *
+ * `boundary` is the outline drawn on screen 7.7. Absent leaves it alone; `null`
+ * or an empty polygon clears it, which is what removing the last vertex sends.
  */
 
 export const dynamic = "force-dynamic";
 
 const bodySchema = z.object({
   name: requiredText("Zone name", 120).optional(),
+  boundary: boundaryField().optional(),
   baseFeeNaira: moneyField("Base fee").optional(),
   paymentRequirement: z.enum(["cod_allowed", "prepaid_required"]).optional(),
   priority: integerField("Priority", { min: 0, max: 1000 }).optional(),
@@ -32,6 +43,7 @@ export const PATCH = staffRoute({
       zoneId: id,
       patch: {
         ...(body.name !== undefined ? { name: body.name } : {}),
+        ...(body.boundary !== undefined ? { boundary: body.boundary } : {}),
         ...(body.baseFeeNaira !== undefined ? { baseFeeKobo: body.baseFeeNaira } : {}),
         ...(body.paymentRequirement !== undefined
           ? { paymentRequirement: body.paymentRequirement }

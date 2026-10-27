@@ -5,7 +5,10 @@ import { useState } from "react";
 
 import { Alert, Button, Field, Input, Select, Stack, Switch, Textarea, useToast } from "@kanofood/ui";
 
+import type { AreaGeometry } from "@kanofood/core";
+
 import { MapPicker } from "@/components/map-picker";
+import { ZoneEditor } from "@/components/zone-editor";
 
 /**
  * The admin form.
@@ -31,7 +34,8 @@ export type AdminFieldType =
   | "textarea"
   | "select"
   | "switch"
-  | "map";
+  | "map"
+  | "polygon";
 
 export interface AdminField {
   readonly name: string;
@@ -124,6 +128,27 @@ function numberOrNull(value: string | boolean | undefined): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+/**
+ * The shape a polygon field is holding.
+ *
+ * The form keeps it as the JSON text the editor published, so this reads it back
+ * for the map to draw. An unreadable string is `null` rather than a throw: the
+ * editor then shows an empty map and publishes a real shape on the first click,
+ * which is a screen that works instead of a screen that crashes on a bad row.
+ */
+function geometryOrNull(value: string | boolean | undefined): AreaGeometry | null {
+  if (typeof value !== "string" || value.trim() === "") return null;
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (typeof parsed === "object" && parsed !== null && "type" in parsed) {
+      return parsed as AreaGeometry;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export function AdminForm({
   action,
   method = "POST",
@@ -180,6 +205,12 @@ export function AdminForm({
           const lng = values[field.lngField];
           body[field.lngField] = typeof lng === "string" ? lng.trim() : "";
         }
+      } else if (field.type === "polygon") {
+        // The outline goes as the JSON text the editor published, and the API's
+        // boundary schema is the one place that decides whether it is a polygon.
+        // An empty string is how "no shape" is said, and the schema reads it as
+        // the empty polygon rather than as a missing field.
+        body[field.name] = typeof value === "string" ? value : "";
       } else if (typeof value === "string" && value.trim() !== "") {
         body[field.name] = value;
       } else if (field.required || field.sendEmpty) {
@@ -264,6 +295,20 @@ export function AdminForm({
                     }
                     set(field.name, String(point.lat));
                     if (field.lngField) set(field.lngField, String(point.lng));
+                  }}
+                />
+              </Field>
+            );
+          }
+
+          if (field.type === "polygon") {
+            return (
+              <Field key={field.name} label={field.label} hint={field.hint} error={errorText}>
+                <ZoneEditor
+                  boundary={geometryOrNull(value)}
+                  label={field.label}
+                  onChange={(shape) => {
+                    set(field.name, shape === null ? "" : JSON.stringify(shape));
                   }}
                 />
               </Field>

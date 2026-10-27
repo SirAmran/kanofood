@@ -37,11 +37,12 @@ import { listZones } from "@/lib/admin/zones";
  * is what explains why, and deleting one takes that explanation with it. A zone
  * that is no longer served is switched off instead.
  *
- * What this screen cannot do is draw the boundary. The polygon is GeoJSON in a
- * column with no editor here, so a zone created from this page starts with an
- * empty one and will not match any address until it is filled in. That gap is
- * reported rather than hidden: the warning below appears on every zone that has
- * never been given a shape.
+ * **The boundary is drawn here.** Screen 7.7 gained an outline editor in Phase
+ * 10, which is what closed the last launch blocker that needed code: a zone
+ * created from this page used to start with an empty polygon and match no
+ * address at all, with no way to fill one in. A zone that still has no outline
+ * says so on its own card, because a zone with no shape is a zone that can never
+ * be the reason a customer was charged.
  */
 
 export const metadata: Metadata = { title: "Zones and fees" };
@@ -80,10 +81,16 @@ export default async function ZonesPage() {
           <AdminForm
             action="/api/v1/admin/zones"
             submitLabel="Add zone"
-            successMessage="Zone added. It is off until you switch it on."
+            successMessage="Zone added. Draw its outline below, then it can price a delivery."
             fields={[
               { name: "name", label: "Name", type: "text", required: true, placeholder: "Nassarawa" },
               { name: "slug", label: "Short name", type: "text", hint: "Left empty, it is made from the name." },
+              {
+                name: "boundary",
+                label: "Delivery area",
+                type: "polygon",
+                hint: "The area this zone covers. A zone with no outline matches no address.",
+              },
               { name: "baseFeeNaira", label: "Base fee (naira)", type: "money", required: true, placeholder: "500" },
               {
                 name: "paymentRequirement",
@@ -149,10 +156,12 @@ export default async function ZonesPage() {
                   />
                 </Spread>
 
-                <Alert tone="warning">
-                  The boundary is not editable here. A zone with no shape matches no address, so check this one in
-                  the database before switching it on.
-                </Alert>
+                {zone.boundary.coordinates.length === 0 ? (
+                  <Alert tone="warning">
+                    This zone has no outline, so it matches no address and cannot be the reason a customer is
+                    charged. Draw one below, or switch the zone off.
+                  </Alert>
+                ) : null}
 
                 <SectionHeader title="Distance tiers" />
                 {zone.rules.length === 0 ? (
@@ -248,6 +257,13 @@ export default async function ZonesPage() {
                     successMessage="Zone saved."
                     fields={[
                       { name: "name", label: "Name", type: "text", value: zone.name },
+                      {
+                        name: "boundary",
+                        label: "Delivery area",
+                        type: "polygon",
+                        value: JSON.stringify(zone.boundary),
+                        hint: "Drag a point to move it, tap the map to add one, or clear it to say this zone covers nothing yet.",
+                      },
                       {
                         name: "baseFeeNaira",
                         label: "Base fee (naira)",

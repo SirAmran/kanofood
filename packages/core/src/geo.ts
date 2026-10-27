@@ -61,8 +61,17 @@ function isRing(value: unknown): value is LinearRing {
   );
 }
 
+/**
+ * A ring set.
+ *
+ * **The empty set is legal and means "no shape yet".** A zone created from the
+ * admin screen is stored with `coordinates: []` until somebody draws it, and
+ * treating that as corruption turned a zone that had simply not been drawn into
+ * a 500 on every customer request. A ring set that contains an *empty ring* is
+ * still refused, because that is a malformed polygon rather than an absent one.
+ */
 function isRingSet(value: unknown): value is readonly LinearRing[] {
-  return Array.isArray(value) && value.length >= 1 && value.every(isRing);
+  return Array.isArray(value) && value.every(isRing);
 }
 
 /**
@@ -82,6 +91,9 @@ export function parseAreaGeometry(value: unknown): AreaGeometry {
     if (!isRingSet(candidate.coordinates)) {
       throw new TypeError("GeoJSON Polygon coordinates are not a ring set");
     }
+    // An empty ring set is a polygon with no area, which `isPointInPolygon`
+    // answers `false` for. That is the honest reading of a zone whose boundary
+    // has not been drawn yet.
     return { type: "Polygon", coordinates: candidate.coordinates };
   }
 

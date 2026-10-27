@@ -1,3 +1,4 @@
+import { type AreaGeometry, parseAreaGeometry } from "@kanofood/core";
 import { prisma } from "@kanofood/db";
 
 import { ApiError } from "../api/http";
@@ -31,7 +32,27 @@ export interface ZoneRow {
   readonly priority: number;
   readonly paymentRequirement: string;
   readonly baseFeeKobo: bigint;
+  /** The drawn outline. An empty polygon means nobody has drawn one yet. */
+  readonly boundary: AreaGeometry;
   readonly rules: readonly FeeRuleRow[];
+}
+
+/**
+ * A stored boundary, or the empty polygon when the row cannot be read.
+ *
+ * `loadActiveZones` refuses to serve a corrupt boundary, because a customer can
+ * do nothing about it and the storefront would otherwise go down. This screen is
+ * the opposite case: it is where the fault gets fixed, so an unreadable shape
+ * becomes an empty one, the operator draws a replacement, and saving writes it
+ * over the bad row.
+ */
+function readBoundary(value: unknown, slug: string): AreaGeometry {
+  try {
+    return parseAreaGeometry(value);
+  } catch (cause) {
+    console.error(`[zones] zone ${slug} has an unreadable boundary`, cause);
+    return { type: "Polygon", coordinates: [] };
+  }
 }
 
 export async function listZones(): Promise<readonly ZoneRow[]> {
@@ -48,6 +69,7 @@ export async function listZones(): Promise<readonly ZoneRow[]> {
     priority: zone.priority,
     paymentRequirement: zone.paymentRequirement,
     baseFeeKobo: zone.baseFeeKobo,
+    boundary: readBoundary(zone.boundary, zone.slug),
     // A Decimal reaches the page as a string rather than a number, because the
     // column is `Decimal(6,2)` and turning it into a float to display it would
     // be the one place in this codebase a distance could acquire a rounding
@@ -88,8 +110,8 @@ function parseKm(value: string, label: string): number {
 export interface ZoneInput {
   readonly name: string;
   readonly slug?: string;
-  /** GeoJSON. Accepted as written; nothing here interprets the geometry. */
-  readonly boundary?: unknown;
+  /** GeoJSON, already validated by `boundaryField` in the route. */
+  readonly boundary?: AreaGeometry;
   readonly baseFeeKobo: bigint;
   readonly paymentRequirement: "cod_allowed" | "prepaid_required";
   readonly priority?: number;
@@ -131,7 +153,12 @@ export async function createZone(input: {
         action: "zone.created",
         entityType: "delivery_zone",
         entityId: zone.id,
-        after: { name, slug, baseFeeKobo: zone.baseFeeKobo.toString() },
+        after: {
+          name,
+          slug,
+          baseFeeKobo: zone.baseFeeKobo.toString(),
+          boundaryPoints: boundaryPointCount(zone.boundary),
+        },
       },
       tx,
     );
@@ -146,7 +173,19 @@ export interface ZonePatch {
   readonly paymentRequirement?: "cod_allowed" | "prepaid_required";
   readonly priority?: number;
   readonly isActive?: boolean;
-  readonly boundary?: unknown;
+  /** GeoJSON, already validated by `boundaryField` in the route. */
+  readonly boundary?: AreaGeometry;
+}
+
+/** How many points a stored boundary has, for the audit row. */
+function boundaryPointCount(value: unknown): number | null {
+  try {
+    const geometry = parseAreaGeometry(value);
+    if (geometry.type === "Polygon") return geometry.coordinates[0]?.length ?? 0;
+    return geometry.coordinates.reduce((total, rings) => total + (rings[0]?.length ?? 0), 0);
+  } catch {
+    return null;
+  }
 }
 
 export async function updateZone(input: {
@@ -189,6 +228,12 @@ export async function updateZone(input: {
           paymentRequirement: before.paymentRequirement,
           priority: before.priority,
           isActive: before.isActive,
+          // The outline is the thing that decides what is chargeable, so an
+          // audit row that recorded only the fee would answer half the question.
+          // The point count is what fits: the shape itself is redrawn, not
+          // versioned, and a copy of every polygon would dwarf the rest of the
+          // log for no answer the count does not already give.
+          boundaryPoints: boundaryPointCount(before.boundary),
         }),
         after: snapshot({
           name: after.name,
@@ -196,6 +241,7 @@ export async function updateZone(input: {
           paymentRequirement: after.paymentRequirement,
           priority: after.priority,
           isActive: after.isActive,
+          boundaryPoints: boundaryPointCount(after.boundary),
         }),
       },
       tx,

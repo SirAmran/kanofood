@@ -139,6 +139,18 @@ test("malformed boundaries are refused loudly, not read as an empty zone", () =>
   assert.throws(() => parseAreaGeometry({ type: "MultiPolygon", coordinates: [] }), TypeError);
 });
 
+test("a polygon with no ring is a zone with no area, not a fault", () => {
+  // This is what `createZone` stores for a zone whose boundary has not been
+  // drawn yet. Reading it as corruption made every customer request 500 as soon
+  // as such a zone was switched on.
+  const undrawn = parseAreaGeometry({ type: "Polygon", coordinates: [] });
+
+  assert.equal(isPointInBoundary(undrawn, { lng: 8.55, lat: 12.05 }), false);
+
+  // A ring set holding an empty ring is still malformed, and still refused.
+  assert.throws(() => parseAreaGeometry({ type: "Polygon", coordinates: [[]] }), TypeError);
+});
+
 test("haversineKm is zero for the same point and symmetric between two", () => {
   const kano = { lng: 8.5167, lat: 12.0022 };
   const wudil = { lng: 8.7833, lat: 11.8167 };

@@ -1693,3 +1693,33 @@
   border: 3px solid #ffffff;
   box-shadow: 0 1px 4px rgb(11 13 14 / 0.4);
 }
+
+/* ====================================================================
+ * Zone boundary editor
+ *
+ * Phase 10. Screen 7.7. The outline and its draggable points, drawn on the
+ * same Leaflet map as the picker. The points are `divIcon` markers for the
+ * same reason the pin is: no image for a bundler to rewrite.
+ * ==================================================================== */
+
+.kf-zone__shape {
+  stroke: var(--accent);
+  stroke-width: 2;
+  fill: var(--accent-soft);
+  fill-opacity: 0.55;
+}
+
+.kf-zone__vertex {
+  display: block;
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  border: 2px solid var(--accent);
+  box-shadow: 0 1px 3px rgb(11 13 14 / 0.45);
+  cursor: grab;
+}
+
+.kf-zone__vertex:active {
+  cursor: grabbing;
+}
