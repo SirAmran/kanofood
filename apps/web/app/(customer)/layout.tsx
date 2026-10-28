@@ -6,6 +6,7 @@ import { readSavedLocation } from "@/lib/public/location";
 
 import { CartLink } from "./_components/cart-link";
 import { CartProvider } from "./_components/cart-provider";
+import { BottomNav } from "./_components/bottom-nav";
 import { LocationBar } from "./_components/location-bar";
 import "./storefront.css";
 
@@ -38,7 +39,15 @@ export default async function CustomerLayout({ children }: { readonly children: 
             <Link href="/" className="sf-brand">
               {shortBrandName()}
             </Link>
-            <CartLink />
+            <div className="sf-header__actions">
+              <Link href="/search" className="sf-icon-button" aria-label="Search kitchens or dishes">
+                <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="m20 20-3.5-3.5" />
+                </svg>
+              </Link>
+              <CartLink />
+            </div>
           </div>
           <div className="sf-header__location">
             <LocationBar location={location} />
@@ -55,6 +64,8 @@ export default async function CustomerLayout({ children }: { readonly children: 
             Help and contact
           </Link>
         </footer>
+
+        <BottomNav />
       </CartProvider>
     </div>
   );

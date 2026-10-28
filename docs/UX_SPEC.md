@@ -94,15 +94,26 @@ readers say "one thousand naira" not "100000".
 ### 4.1 Home
 
 Purpose: orient and start an order.
-Components: delivery location bar (top, always visible and editable), search
-entry, category chips, nearby kitchens, popular items, delivery information strip.
-Actions: change location, search, open a category, open a kitchen, open an item.
+Components: delivery location bar (top, always visible and editable), featured
+rail (one photograph at a time, slow automatic advance on pointer devices, dots
+that are also buttons), search entry, category chips, student pack announcement,
+nearby kitchens, popular items, delivery information strip. On a phone, a fixed
+four-item bottom bar (home, browse, search, cart) keeps navigation within reach;
+it disappears above 900px where the header has room.
+Actions: change location, search, open a category, open a featured card, open a
+kitchen, open an item, ask about the student pack.
 Loading: skeleton cards in the kitchen and item rails.
 Empty: no kitchens in the zone, so explain the zone and offer to change location
-or contact the platform.
+or contact the platform. An empty featured rail hides its section.
 Error: keep the last good content, show a non-blocking retry banner.
 Success: content renders, location is remembered.
 Responsive: single column mobile, two to three columns from tablet.
+
+The featured rail is editorial, not calculated. It is edited at
+`/admin/featured` (copy, link, badge, order, active state, photograph). With no
+rows the screen shows the built-in starting set; when rows exist but every one is
+inactive the rail is hidden. The student pack is announced as coming soon and is
+copy, not a product: it cannot be added to a cart until it is launched.
 
 ### 4.2 Search
 

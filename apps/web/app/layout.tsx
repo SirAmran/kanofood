@@ -40,8 +40,8 @@ export const viewport: Viewport = {  width: "device-width",
   // Keeps content clear of the home indicator and notch on a phone.
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0d0f11" },
+    { media: "(prefers-color-scheme: light)", color: "#fdfaf6" },
+    { media: "(prefers-color-scheme: dark)", color: "#100d0b" },
   ],
 };
 

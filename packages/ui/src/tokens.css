@@ -21,49 +21,68 @@
    * onto semantic names, so a rebrand touches this block and nothing else.
    * Overridden at runtime from BRAND_COLOR_PRIMARY and BRAND_COLOR_ACCENT.
    * ------------------------------------------------------------------ */
-  --brand-primary: #10693f;
-  --brand-accent: #e8a33d;
+  --brand-primary: #bf451c;
+  --brand-accent: #eaa33f;
 
   /* ------------------------------------------------------------------ *
    * Colour, light
+   *
+   * Warm paper rather than pure white, and an ember primary rather than a
+   * saturated red. Food photography is the loudest thing on a storefront; the
+   * surface is the quiet room it hangs in. The second brand colour is saffron,
+   * used for highlights and the student pack, never for a second action.
    * ------------------------------------------------------------------ */
-  --surface: #ffffff;
+  --surface: #fdfaf6;
   --surface-raised: #ffffff;
-  --surface-sunken: #f4f5f6;
-  --surface-overlay: rgb(11 13 14 / 0.45);
+  --surface-sunken: #f5ece1;
+  --surface-overlay: rgb(30 18 10 / 0.52);
 
-  --text: #0b0d0e;
-  --text-muted: #5b6268;
-  --text-inverse: #ffffff;
+  --text: #1d1613;
+  --text-muted: #6d6057;
+  --text-inverse: #fffaf5;
 
-  --border: #e4e7e9;
-  --border-strong: #ccd1d5;
+  --border: #ecdfd2;
+  --border-strong: #d9c7b6;
 
   --accent: var(--brand-primary);
-  --accent-hover: color-mix(in oklab, var(--brand-primary), black 10%);
-  --accent-text: #ffffff;
-  --accent-soft: color-mix(in oklab, var(--brand-primary), white 90%);
+  --accent-hover: color-mix(in oklab, var(--brand-primary), black 12%);
+  --accent-text: #fff8f2;
+  --accent-soft: color-mix(in oklab, var(--brand-primary), white 91%);
+  --accent-2: var(--brand-accent);
+  --accent-2-soft: color-mix(in oklab, var(--brand-accent), white 78%);
+  /* Ink for type sitting on saffron. Saffron stays light in both themes, so this
+   * is one value rather than a themed pair. */
+  --accent-2-text: #3a2205;
 
-  --success: #12734a;
-  --success-soft: #e3f3ec;
-  --warning: #8a5200;
-  --warning-soft: #fbf0dd;
-  --danger: #a5271b;
-  --danger-soft: #fbe9e6;
-  --info: #17558f;
-  --info-soft: #e6eef7;
+  --success: #17724a;
+  --success-soft: #e5f4ec;
+  --warning: #8a5300;
+  --warning-soft: #fdf0d9;
+  --danger: #b3261e;
+  --danger-soft: #fbe8e6;
+  --info: #1f5f8f;
+  --info-soft: #e7f0f8;
 
-  --focus-ring: color-mix(in oklab, var(--brand-primary), white 25%);
+  --focus-ring: color-mix(in oklab, var(--brand-primary), white 18%);
 
-  /* Soft, low-contrast shadows. A big app separates surfaces with depth, not
-   * with a hard 1px border on everything. */
-  --elevation-1: 0 1px 2px rgb(11 13 14 / 0.06), 0 1px 1px rgb(11 13 14 / 0.04);
-  --elevation-2: 0 4px 14px rgb(11 13 14 / 0.10), 0 1px 3px rgb(11 13 14 / 0.06);
-  --elevation-3: 0 18px 44px rgb(11 13 14 / 0.18), 0 4px 12px rgb(11 13 14 / 0.10);
+  /* Soft, warm shadows. A big app separates surfaces with depth, not with a
+   * hard 1px border on everything. */
+  --elevation-1: 0 1px 2px rgb(58 34 16 / 0.06), 0 1px 1px rgb(58 34 16 / 0.04);
+  --elevation-2: 0 10px 30px rgb(58 34 16 / 0.10), 0 2px 6px rgb(58 34 16 / 0.06);
+  --elevation-3: 0 24px 60px rgb(58 34 16 / 0.18), 0 6px 16px rgb(58 34 16 / 0.10);
 
   /* Skeleton shimmer. Two stops, so it reads as motion and not as a stripe. */
-  --skeleton-base: #eceef0;
-  --skeleton-sheen: #f7f8f9;
+  --skeleton-base: #f1e7db;
+  --skeleton-sheen: #fbf5ed;
+
+  /* Recipes shared by the storefront: one warm wash for empty space, one ink
+   * gradient for text over a photograph, and a grain fine enough to read as
+   * paper rather than as noise. */
+  --gradient-warm: radial-gradient(120% 100% at 0% 0%, #fde7d6 0%, transparent 58%),
+    radial-gradient(90% 80% at 100% 0%, #fbeed3 0%, transparent 55%);
+  --gradient-ink: linear-gradient(180deg, rgb(20 11 6 / 0) 0%, rgb(20 11 6 / 0.28) 42%, rgb(20 11 6 / 0.86) 100%);
+  --gradient-ember: linear-gradient(135deg, var(--brand-primary) 0%, #e0722f 55%, var(--brand-accent) 100%);
+  --texture-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='linear' slope='0.055'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
 
   /* ------------------------------------------------------------------ *
    * Type
@@ -159,76 +178,92 @@
  * -------------------------------------------------------------------- */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --surface: #0d0f11;
-    --surface-raised: #16191c;
-    --surface-sunken: #08090a;
-    --surface-overlay: rgb(0 0 0 / 0.6);
+    --surface: #100d0b;
+    --surface-raised: #1a1512;
+    --surface-sunken: #080706;
+    --surface-overlay: rgb(0 0 0 / 0.66);
 
-    --text: #f5f7f8;
-    --text-muted: #9aa2a8;
-    --text-inverse: #0b0d0e;
+    --text: #f8f2ea;
+    --text-muted: #ab9e92;
+    --text-inverse: #1d1613;
 
-    --border: #24282c;
-    --border-strong: #363c41;
+    --border: #2b2320;
+    --border-strong: #3f342d;
 
-    --accent-hover: color-mix(in oklab, var(--brand-primary), white 12%);
-    --accent-soft: color-mix(in oklab, var(--brand-primary), black 72%);
+    --accent: color-mix(in oklab, var(--brand-primary), white 32%);
+    --accent-hover: color-mix(in oklab, var(--brand-primary), white 42%);
+    --accent-text: #1b0d07;
+    --accent-soft: color-mix(in oklab, var(--brand-primary), black 68%);
+    --accent-2: color-mix(in oklab, var(--brand-accent), white 14%);
+    --accent-2-soft: color-mix(in oklab, var(--brand-accent), black 62%);
 
-    --success: #4cc38a;
-    --success-soft: #10251c;
-    --warning: #e0a44a;
-    --warning-soft: #2a2011;
-    --danger: #f0736a;
-    --danger-soft: #2c1513;
-    --info: #6aa9e0;
+    --success: #59d39a;
+    --success-soft: #10261d;
+    --warning: #efb35c;
+    --warning-soft: #2b2112;
+    --danger: #ff8a80;
+    --danger-soft: #2e1513;
+    --info: #82b7e0;
     --info-soft: #101d2b;
 
-    --focus-ring: color-mix(in oklab, var(--brand-primary), white 45%);
+    --focus-ring: color-mix(in oklab, var(--brand-primary), white 48%);
 
-    --elevation-1: 0 1px 2px rgb(0 0 0 / 0.4);
-    --elevation-2: 0 4px 14px rgb(0 0 0 / 0.5);
-    --elevation-3: 0 18px 44px rgb(0 0 0 / 0.65);
+    --elevation-1: 0 1px 2px rgb(0 0 0 / 0.45);
+    --elevation-2: 0 10px 30px rgb(0 0 0 / 0.5), 0 2px 6px rgb(0 0 0 / 0.35);
+    --elevation-3: 0 24px 60px rgb(0 0 0 / 0.7), 0 6px 16px rgb(0 0 0 / 0.45);
 
-    --skeleton-base: #1b1f22;
-    --skeleton-sheen: #23282c;
+    --skeleton-base: #221b17;
+    --skeleton-sheen: #2c241f;
+
+    --gradient-warm: radial-gradient(120% 100% at 0% 0%, #3a1d10 0%, transparent 58%),
+      radial-gradient(90% 80% at 100% 0%, #322711 0%, transparent 55%);
+    --gradient-ink: linear-gradient(180deg, rgb(0 0 0 / 0) 0%, rgb(0 0 0 / 0.34) 42%, rgb(0 0 0 / 0.9) 100%);
   }
 }
 
 /* Explicit dark, so a theme toggle wins over the system setting in both
  * directions. Kept in step with the block above. */
 :root[data-theme="dark"] {
-  --surface: #0d0f11;
-  --surface-raised: #16191c;
-  --surface-sunken: #08090a;
-  --surface-overlay: rgb(0 0 0 / 0.6);
+  --surface: #100d0b;
+  --surface-raised: #1a1512;
+  --surface-sunken: #080706;
+  --surface-overlay: rgb(0 0 0 / 0.66);
 
-  --text: #f5f7f8;
-  --text-muted: #9aa2a8;
-  --text-inverse: #0b0d0e;
+  --text: #f8f2ea;
+  --text-muted: #ab9e92;
+  --text-inverse: #1d1613;
 
-  --border: #24282c;
-  --border-strong: #363c41;
+  --border: #2b2320;
+  --border-strong: #3f342d;
 
-  --accent-hover: color-mix(in oklab, var(--brand-primary), white 12%);
-  --accent-soft: color-mix(in oklab, var(--brand-primary), black 72%);
+  --accent: color-mix(in oklab, var(--brand-primary), white 32%);
+  --accent-hover: color-mix(in oklab, var(--brand-primary), white 42%);
+  --accent-text: #1b0d07;
+  --accent-soft: color-mix(in oklab, var(--brand-primary), black 68%);
+  --accent-2: color-mix(in oklab, var(--brand-accent), white 14%);
+  --accent-2-soft: color-mix(in oklab, var(--brand-accent), black 62%);
 
-  --success: #4cc38a;
-  --success-soft: #10251c;
-  --warning: #e0a44a;
-  --warning-soft: #2a2011;
-  --danger: #f0736a;
-  --danger-soft: #2c1513;
-  --info: #6aa9e0;
+  --success: #59d39a;
+  --success-soft: #10261d;
+  --warning: #efb35c;
+  --warning-soft: #2b2112;
+  --danger: #ff8a80;
+  --danger-soft: #2e1513;
+  --info: #82b7e0;
   --info-soft: #101d2b;
 
-  --focus-ring: color-mix(in oklab, var(--brand-primary), white 45%);
+  --focus-ring: color-mix(in oklab, var(--brand-primary), white 48%);
 
-  --elevation-1: 0 1px 2px rgb(0 0 0 / 0.4);
-  --elevation-2: 0 4px 14px rgb(0 0 0 / 0.5);
-  --elevation-3: 0 18px 44px rgb(0 0 0 / 0.65);
+  --elevation-1: 0 1px 2px rgb(0 0 0 / 0.45);
+  --elevation-2: 0 10px 30px rgb(0 0 0 / 0.5), 0 2px 6px rgb(0 0 0 / 0.35);
+  --elevation-3: 0 24px 60px rgb(0 0 0 / 0.7), 0 6px 16px rgb(0 0 0 / 0.45);
 
-  --skeleton-base: #1b1f22;
-  --skeleton-sheen: #23282c;
+  --skeleton-base: #221b17;
+  --skeleton-sheen: #2c241f;
+
+  --gradient-warm: radial-gradient(120% 100% at 0% 0%, #3a1d10 0%, transparent 58%),
+    radial-gradient(90% 80% at 100% 0%, #322711 0%, transparent 55%);
+  --gradient-ink: linear-gradient(180deg, rgb(0 0 0 / 0) 0%, rgb(0 0 0 / 0.34) 42%, rgb(0 0 0 / 0.9) 100%);
 }
 
 /* Motion is opt-out, and the opt-out is honoured here rather than in each

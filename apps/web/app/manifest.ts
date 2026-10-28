@@ -35,8 +35,8 @@ export default function manifest(): MetadataRoute.Manifest {
     display: "standalone",
     // Matches the light theme colour in the root layout's viewport export. A
     // manifest carries one colour and cannot follow `prefers-color-scheme`.
-    theme_color: "#ffffff",
-    background_color: "#ffffff",
+    theme_color: "#fdfaf6",
+    background_color: "#fdfaf6",
     orientation: "portrait",
     // Drawn by `app/pwa-icon/[size]/route.tsx`. `maskable` on the 512 is the
     // same drawing: the letter sits inside the 80% safe circle Android crops to.

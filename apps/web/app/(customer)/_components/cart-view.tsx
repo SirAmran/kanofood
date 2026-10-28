@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { formatNaira } from "@kanofood/core";
-import { Alert, Button, buttonClass, EmptyState, Spinner } from "@kanofood/ui";
+import { Alert, Button, buttonClass, Spinner } from "@kanofood/ui";
 
 import { readLocationCookie } from "@/lib/public/location-shared";
 
@@ -100,16 +100,22 @@ export function CartView() {
 
   if (!cart) {
     return (
-      <EmptyState
-        title="Your cart is empty"
-        action={
-          <Link href="/kitchens" className={buttonClass({ variant: "primary", size: "sm" })}>
-            Browse kitchens
-          </Link>
-        }
-      >
-        Add a dish from any kitchen and it will wait here, even after a refresh.
-      </EmptyState>
+      <div className="sf-empty-cart">
+        <span className="sf-empty-cart__badge" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.9">
+            <path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.9a2 2 0 0 0 2-1.55L21 8H6" />
+            <circle cx="10" cy="20" r="1.4" />
+            <circle cx="18" cy="20" r="1.4" />
+          </svg>
+        </span>
+        <span className="sf-empty-cart__title">Your cart is empty</span>
+        <p className="sf-empty-cart__body">
+          Add a dish from any kitchen and it will wait here, even after a refresh.
+        </p>
+        <Link href="/kitchens" className={buttonClass({ variant: "primary", size: "sm" })}>
+          Browse kitchens
+        </Link>
+      </div>
     );
   }
 

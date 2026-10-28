@@ -24,7 +24,7 @@ import { ImageResponse } from "next/og";
 const COLOUR = /^(#[0-9a-f]{3,8}|rgba?\([^)]*\)|hsla?\([^)]*\)|[a-z]+)$/i;
 
 /** The fallback, matching `--brand-primary` in `packages/ui/src/tokens.css`. */
-const FALLBACK_COLOUR = "#10693f";
+const FALLBACK_COLOUR = "#bf451c";
 
 /** The first letter of the platform's name, upper-cased. */
 export function brandLetter(): string {
