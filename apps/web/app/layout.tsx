@@ -1,38 +1,41 @@
 import type { Metadata, Viewport } from "next";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 import "@kanofood/ui/tokens.css";
 import "@kanofood/ui/components.css";
 import "./globals.css";
 
-/**
- * An empty environment variable is not a configured one.
- *
- * `.env.example` ships `BRAND_NAME=` with nothing after it, and `??` falls back
- * only on null and undefined — so the empty string won, and every page title
- * rendered `Dashboard | ` with a dangling pipe. Blank is treated as absent here
- * rather than by filling the value into `.env`, because the next person to copy
- * `.env.example` would put it straight back.
- */
-function configured(value: string | undefined, fallback: string): string {
-  const trimmed = value?.trim();
-  return trimmed ? trimmed : fallback;
-}
+import { brandColours, brandName, brandTagline } from "@/lib/brand";
 
-const brand = configured(process.env.BRAND_NAME, "KanoFood");
+const brand = brandName();
+
+/**
+ * A deployment can repaint the platform without a code change.
+ *
+ * `tokens.css` says the brand slots are "overridden at runtime from
+ * BRAND_COLOR_PRIMARY and BRAND_COLOR_ACCENT" and, until now, nothing did that:
+ * the variables only reached the generated PWA icon. Written as an inline style
+ * on `<html>` because `:root` is that element, so a custom property here beats
+ * the token file without a cascade fight, and because React escapes it — no
+ * hand-built `<style>` string to get wrong.
+ */
+const colours = brandColours();
+const brandStyle = {
+  ...(colours.primary ? { "--brand-primary": colours.primary } : {}),
+  ...(colours.accent ? { "--brand-accent": colours.accent } : {}),
+} as CSSProperties;
 
 export const metadata: Metadata = {
   title: {
     default: brand,
     template: `%s | ${brand}`,
   },
-  description: configured(process.env.BRAND_TAGLINE, "Food delivery in Kano Metropolitan."),
+  description: brandTagline(),
   applicationName: brand,
   formatDetection: { telephone: true, address: false, email: false },
 };
 
-export const viewport: Viewport = {
-  width: "device-width",
+export const viewport: Viewport = {  width: "device-width",
   initialScale: 1,
   // Keeps content clear of the home indicator and notch on a phone.
   viewportFit: "cover",
@@ -44,7 +47,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" style={brandStyle}>
       <body>{children}</body>
     </html>
   );

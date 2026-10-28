@@ -1,14 +1,15 @@
 import type { MetadataRoute } from "next";
 
+import { brandName, brandTagline, shortBrandName } from "@/lib/brand";
+
 /**
  * The web app manifest, generated rather than served as a static file.
  *
- * `BRAND_NAME` is configuration: the root layout and the customer shell both read
- * it, and an install that renames the platform would otherwise install an app
- * called KanoFood. A `public/manifest.webmanifest` cannot see that variable, so
- * the brand would be hardcoded in a second place and drift the first time the
- * variable changed. This route is the same read as `app/layout.tsx`, one call
- * later.
+ * The names come from `lib/brand.ts`: `BRAND_NAME` is the full name and
+ * `BRAND_SHORT_NAME` the wordmark. A `public/manifest.webmanifest` cannot see
+ * either, so the brand would be hardcoded in a second place and drift the first
+ * time a variable changed. This route is the same read as `app/layout.tsx`, one
+ * call later.
  *
  * **The icons are drawn from the brand, not committed as PNGs.** Chrome will not
  * offer "install" without a 192px and a 512px icon, and iOS will not deliver a
@@ -20,20 +21,14 @@ import type { MetadataRoute } from "next";
  * name after a rebrand.
  */
 
-/** Blank is not configured. Same rule as `app/layout.tsx`, and for the same reason. */
-function configured(value: string | undefined, fallback: string): string {
-  const trimmed = value?.trim();
-  return trimmed ? trimmed : fallback;
-}
-
 export default function manifest(): MetadataRoute.Manifest {
-  const brand = configured(process.env.BRAND_NAME, "KanoFood");
-
   return {
     id: "/",
-    name: brand,
-    short_name: brand,
-    description: configured(process.env.BRAND_TAGLINE, "Food delivery in Kano Metropolitan."),
+    name: brandName(),
+    // What the home screen has room for, and what people will say. The full
+    // name above is what an install sheet reads out.
+    short_name: shortBrandName(),
+    description: brandTagline(),
     lang: "en-NG",
     start_url: "/",
     scope: "/",

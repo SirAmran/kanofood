@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { Avatar, ToastProvider } from "@kanofood/ui";
 
 import { requireAdmin } from "@/lib/admin/session";
+import { shortBrandName } from "@/lib/brand";
 import { AdminNav } from "../../_components/admin-nav";
 import { NotificationBell } from "../../_components/notification-bell";
 import { SessionKeepAlive } from "../../_components/session-keep-alive";
@@ -26,7 +27,7 @@ import { SignOutButton } from "../../_components/sign-out-button";
  * keep-alive (a timer), and sign out (a post).
  */
 
-const brand = process.env.BRAND_NAME ?? "KanoFood";
+const shortBrand = shortBrandName();
 
 export const dynamic = "force-dynamic";
 
@@ -41,9 +42,9 @@ export default async function AdminShellLayout({ children }: { children: ReactNo
         <aside className="kf-shell__sidebar">
           <Link href="/admin" className="kf-shell__brand">
             <span className="kf-shell__mark" aria-hidden="true">
-              {brand.slice(0, 1)}
+              {shortBrand.slice(0, 1)}
             </span>
-            <span className="kf-shell__brand-name">{brand}</span>
+            <span className="kf-shell__brand-name">{shortBrand}</span>
           </Link>
 
           <AdminNav />

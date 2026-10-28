@@ -42,23 +42,38 @@ const prisma = new PrismaClient({
 });
 
 /**
- * The standard in-zone delivery fee, in kobo. PRODUCT_SPEC section 1 states it
- * as naira; this file is the one place it is written down, and it exists in the
- * database as a row. Nothing in application code may hold this number.
+ * The standard delivery fee, in kobo, and the zone's base fee.
+ *
+ * PRODUCT_SPEC section 1 stated ₦1,000. The owner set ₦1,500 on 2026-10-28, so
+ * that is what this is now; the specification line is superseded rather than
+ * quietly contradicted. It is written here and lives in the database as a row —
+ * nothing in application code may hold this number.
+ *
+ * The base fee is not decorative. It is what a point pays when it matches no
+ * band: a kitchen with no pin, or an address beyond the last band. That path is
+ * why a real test order on 2026-10-28 was charged ₦1,000 while every band said
+ * ₦1,500, so raising this is the half of the change that fixes the checkout.
  */
-const STANDARD_DELIVERY_FEE_KOBO = 100_000n;
+const STANDARD_DELIVERY_FEE_KOBO = 150_000n;
 
 /**
- * Distance bands from PRODUCT_SPEC section 11: 0-3km, 3-5km, 5-8km. All three
- * carry the standard fee for now. Section 11 writes the tier prices as X, Y and
- * Z without naming them, so inventing a premium here would be inventing pricing.
- * The rows exist at the standard rate and an admin sets a premium when there is
- * one to set.
+ * Distance bands, and what each costs.
+ *
+ * PRODUCT_SPEC section 11 sketches 0-3km, 3-5km, 5-8km as X, Y, Z without naming
+ * prices. The owner set the near price on 2026-10-28: **₦1,500 within 2 km of the
+ * kitchen**, which is why the first edge moved from 3 km to 2 km rather than
+ * being left as the sketch had it. The 2-5 km band carries the same ₦1,500 for
+ * now, and 5-8 km carries ₦2,000; both are existing live values kept so this
+ * change does not silently reprice a customer who is 4 km away. An admin can
+ * edit either from the zones screen without a deploy.
  */
-const FEE_BANDS: ReadonlyArray<{ minKm: number; maxKm: number }> = [
-  { minKm: 0, maxKm: 3 },
-  { minKm: 3, maxKm: 5 },
-  { minKm: 5, maxKm: 8 },
+const NEAR_BAND_FEE_KOBO = STANDARD_DELIVERY_FEE_KOBO;
+const FAR_BAND_FEE_KOBO = 200_000n; // ₦2,000, 5-8 km
+
+const FEE_BANDS: ReadonlyArray<{ minKm: number; maxKm: number; feeKobo: bigint }> = [
+  { minKm: 0, maxKm: 2, feeKobo: NEAR_BAND_FEE_KOBO },
+  { minKm: 2, maxKm: 5, feeKobo: NEAR_BAND_FEE_KOBO },
+  { minKm: 5, maxKm: 8, feeKobo: FAR_BAND_FEE_KOBO },
 ];
 
 /**
@@ -119,14 +134,17 @@ async function main(): Promise<void> {
         zoneId: zone.id,
         minKm: band.minKm,
         maxKm: band.maxKm,
-        feeKobo: STANDARD_DELIVERY_FEE_KOBO,
+        feeKobo: band.feeKobo,
       })),
     });
     return tx.deliveryFeeRule.count({ where: { zoneId: zone.id } });
   });
 
   console.log(`zone      ${zone.slug} (${zone.id})`);
-  console.log(`fee rules ${feeRules} tiers, all at ${STANDARD_DELIVERY_FEE_KOBO} kobo`);
+  console.log(
+    `fee rules ${feeRules} tiers: ` +
+      FEE_BANDS.map((band) => `${band.minKm}-${band.maxKm}km ${band.feeKobo}`).join(", "),
+  );
 
   if (zone.boundary && (zone.boundary as { _placeholder?: boolean })._placeholder) {
     console.warn("boundary  PLACEHOLDER rectangle. Replace with the real zone boundary before launch.");

@@ -17,9 +17,11 @@ configurable rather than hardcoded.
 
 **Pricing.**
 
-- Standard delivery fee within the supported Kano Metropolitan zone: ₦1,000.
+- Standard delivery fee: ₦1,500, charged for any address within 2 km of the kitchen.
+- The zone's base fee is also ₦1,500, so an address with no measured distance is
+  never cheaper than a nearby one.
 - Outside the initial zone: additional charges, defined per zone.
-- The ₦1,000 exists as a database row. It is not a constant in code.
+- The ₦1,500 exists as database rows. It is not a constant in code.
 
 **Payment.** Cash on delivery. No online payment in V1. No customer account
 required to order.
@@ -296,13 +298,17 @@ A zone has a name, a boundary, a base fee, a payment requirement and an active
 flag. Fee rules allow distance tiers inside a zone.
 
 ```
-0 to 3 km    X
-3 to 5 km    Y
-5 to 8 km    Z
+0 to 2 km    ₦1,500
+2 to 5 km    ₦1,500
+5 to 8 km    ₦2,000
 outside zone custom, or refused
 ```
 
-Nothing about the current ₦1,000 is hardcoded. Changing the price is an admin
+The first edge is 2 km rather than the 3 km sketch, set by the owner on
+2026-10-28: ₦1,500 within 2 km of the kitchen. The two further bands keep their
+live prices so the change does not reprice an address that is already trading.
+
+Nothing about the current ₦1,500 is hardcoded. Changing the price is an admin
 edit. Adding a zone is an admin edit. Whether an outside-zone order is accepted
 at all, and whether it must be prepaid, is a per-zone property.
 
