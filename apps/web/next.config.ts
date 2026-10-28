@@ -44,6 +44,49 @@ const nextConfig: NextConfig = {
    * the server bundle.
    */
   serverExternalPackages: ["sharp"],
+  /**
+   * Security headers, Phase 10.
+   *
+   * HTTPS is the host's job, but HSTS is the part a host cannot know to send:
+   * it tells the browser that every later visit is HTTPS before the first
+   * request leaves the device. The rest close the cheap defaults a Next app
+   * leaves open: MIME sniffing, framing, referrer leakage, and browser features
+   * this application never asks for.
+   *
+   * `geolocation=(self)` rather than `()` is not an oversight. The delivery-point
+   * screen has a GPS button, and a policy that denied it would make the button
+   * fail silently on a phone. Camera and microphone are genuinely unused.
+   *
+   * There is no Content-Security-Policy here. A useful one needs a nonce for
+   * Next's inline bootstrapping and an allowlist for the OpenStreetMap tiles and
+   * the Supabase image host, and Leaflet writes inline styles. Written blind it
+   * breaks the maps and is then removed, which is worse than not having it yet.
+   * It belongs with a browser-driven test, and this machine has no browser
+   * driver. The other headers do not have that risk.
+   */
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          {
+            key: "Strict-Transport-Security",
+            value: "max-age=63072000; includeSubDomains",
+          },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "DENY" },
+          {
+            key: "Referrer-Policy",
+            value: "strict-origin-when-cross-origin",
+          },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=(self), browsing-topics=()",
+          },
+        ],
+      },
+    ];
+  },
   images: {
     // Kitchen and food images come from object storage, not the filesystem.
     remotePatterns: hostname

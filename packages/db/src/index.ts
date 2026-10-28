@@ -18,6 +18,8 @@
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 
+import { databasePoolMax } from "./pool.ts";
+
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
@@ -41,7 +43,24 @@ function createPrismaClient(): PrismaClient {
   }
 
   return new PrismaClient({
-    adapter: new PrismaPg({ connectionString }),
+    /**
+     * The adapter owns a `pg` pool, and its size is the mitigation section 10
+     * asks for. Prisma's own pool would default to a much larger number, which
+     * is exactly the fleet-wide exhaustion the pooled URL exists to avoid.
+     *
+     * `connectionTimeoutMillis` matters as much as `max`: with a saturated
+     * database an unbounded wait turns a slow response into a request that never
+     * finishes and holds its function instance open. Ten seconds fails the query
+     * while the request can still answer. Idle clients are released so a quiet
+     * instance does not sit on connections the next instance needs.
+     */
+    adapter: new PrismaPg({
+      connectionString,
+      max: databasePoolMax(),
+      idleTimeoutMillis: 10_000,
+      connectionTimeoutMillis: 10_000,
+      allowExitOnIdle: true,
+    }),
     /**
      * Query logging in development only. A query log is disk traffic, and this
      * machine pages onto a 5400rpm drive measured at 94% busy, so it is off

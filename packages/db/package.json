@@ -12,6 +12,8 @@
     "deploy": "prisma migrate deploy",
     "studio": "prisma studio",
     "seed": "node --env-file-if-exists=../../.env prisma/seed.ts",
+    "pool-check": "node --env-file-if-exists=../../.env scripts/pool-check.ts",
+    "restore-drill": "node --env-file-if-exists=../../.env scripts/restore-drill.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

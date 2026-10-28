@@ -9,9 +9,13 @@ read from configuration, so a rename touches settings and not code.
 
 ## Status
 
-Phase 1, repository structure. The application is scaffolding: the route groups
-exist and serve placeholder pages, and the money and order lifecycle modules in
-`packages/core` are real. Nothing is deployed and there is no database yet.
+Phase 10, deployment. Phases 0 to 9 are built: the domain core, the versioned
+API and authentication, admin, customer, kitchen, rider, notifications, Sheets
+reporting and the Leaflet maps. The repository is configured for Netlify and
+hosted PostgreSQL, with a readiness probe, a per-instance connection pool and a
+pool check. No production site has been deployed yet, and the restore drill and
+pool check have not been run against one; `docs/DEPLOYMENT.md` lists those owner
+actions and records their results.
 
 ## The specification
 
@@ -21,6 +25,9 @@ behaviour:
 - `docs/ARCHITECTURE.md` - stack, schema, API, auth, notifications, deployment
 - `docs/PRODUCT_SPEC.md` - business model, roles, flows, order lifecycle, money
 - `docs/UX_SPEC.md` - every screen, design system, responsive and accessibility
+
+`docs/DEPLOYMENT.md` is the deployment procedure: provider setup, environment
+matrix, migrations, the pool check, the restore drill and rollback.
 
 ## Layout
 
@@ -63,9 +70,16 @@ Requires Node 24 or later.
 npm install
 cp .env.example .env      # then fill in DATABASE_URL and DIRECT_URL
 npm run db:generate
+npm run db:deploy         # applies the migrations that exist; db:migrate is for schema work
+npm run db:seed
 npm run dev
 ```
 
-Dependencies are not installed yet: Phase 1 wrote structure and nothing was
-fetched. See `docs/ARCHITECTURE.md` section 2 for why the stack is shaped around
-this machine.
+`npm run build` generates the Prisma client and then builds the application. It
+does not need database credentials.
+
+The first sign-in needs an admin; the seed deliberately creates no users:
+
+```
+npm run db:create-admin -- --phone 08012345678 --name "Owner"
+```

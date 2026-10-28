@@ -1,0 +1,27 @@
+# Netlify build configuration. Phase 10, docs/ARCHITECTURE.md section 10.
+#
+# The repository root is the base directory and the install location, because
+# this is an npm workspace: a base of apps/web would install that package without
+# the workspace root that owns package-lock.json. The publish directory is
+# therefore stated relative to the root.
+#
+# No Next.js plugin is listed on purpose. Netlify detects the app and installs
+# its OpenNext adapter itself, and Netlify's documentation asks projects not to
+# pin the adapter version: the adapter is what tracks Next releases, and a pin
+# turns a Next security upgrade into a two-part upgrade nobody remembers.
+#
+# Secrets are not here. DATABASE_URL and the rest live in the site's environment
+# configuration, never in this file; see docs/DEPLOYMENT.md.
+#
+# The build command runs `prisma generate` before `next build`. A fresh clone has
+# no generated client, and Netlify caches node_modules between builds, so making
+# generation part of the build is what stops a deploy from failing on a stale or
+# missing client. It does not connect to the database.
+
+[build]
+  command = "npm run build"
+  publish = "apps/web/.next"
+
+[build.environment]
+  NODE_VERSION = "24"
+  NEXT_TELEMETRY_DISABLED = "1"

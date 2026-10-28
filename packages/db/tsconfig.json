@@ -1,7 +1,11 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "noEmit": true
+    "noEmit": true,
+    // The scripts run as TypeScript through Node's type stripping, and Node
+    // resolves a relative import only with its real `.ts` extension. Safe here
+    // because this project never emits.
+    "allowImportingTsExtensions": true
   },
-  "include": ["src/**/*.ts", "prisma/**/*.ts"]
+  "include": ["src/**/*.ts", "prisma/**/*.ts", "scripts/**/*.ts"]
 }

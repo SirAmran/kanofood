@@ -12,13 +12,16 @@
   },
   "scripts": {
     "dev": "npm run dev --workspace @kanofood/web",
-    "build": "npm run build --workspace @kanofood/web",
+    "build": "npm run db:generate && npm run build --workspace @kanofood/web",
     "start": "npm run start --workspace @kanofood/web",
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "db:generate": "npm run generate --workspace @kanofood/db",
     "db:migrate": "npm run migrate --workspace @kanofood/db",
+    "db:deploy": "npm run deploy --workspace @kanofood/db",
     "db:seed": "npm run seed --workspace @kanofood/db",
+    "db:pool-check": "npm run pool-check --workspace @kanofood/db",
+    "db:restore-drill": "npm run restore-drill --workspace @kanofood/db",
     "db:create-admin": "npm run create-admin --workspace @kanofood/web --",
     "db:studio": "npm run studio --workspace @kanofood/db"
   },

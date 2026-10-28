@@ -385,11 +385,35 @@ failure mode of this combination. Mitigation is a pooled connection string with 
 small per-instance pool, and this must be verified under concurrent load before
 launch rather than assumed.
 
-Environments: local, preview (per pull request), production. Secrets live in the
-host's environment configuration, never in the repository.
+**Implemented 2026-10-28.** The pool is built in `packages/db/src/pool.ts`:
+three connections per process by default, tunable with `DATABASE_POOL_MAX` within
+1 to 20, with a ten-second connect timeout so a saturated database fails a query
+instead of holding a function open forever. `GET /api/v1/health/ready` is the
+readiness probe that exercises the database without making liveness depend on it,
+and `npm run db:pool-check` sends concurrent requests at that endpoint while
+sampling `pg_stat_activity`, failing when the connection delta exceeds the
+ceiling. The provider ceiling arithmetic is in `docs/DEPLOYMENT.md`.
+
+Netlify builds from the root `netlify.toml`. The repository root is the install
+and build directory because this is an npm workspace; the publish directory is
+`apps/web/.next`. The build runs `prisma generate` before `next build`, so a fresh
+clone cannot fail on a missing client. No adapter version is pinned: Netlify's
+OpenNext adapter is what tracks Next releases, and Netlify asks projects not to
+pin it. Deploy previews get a separate database, never production.
 
 Backups: the database provider handles point-in-time recovery. A restore must be
 actually performed once before launch. An untested backup is not a backup.
+`npm run db:restore-drill` compares a restored scratch project with production:
+table list, schema fingerprint, latest migration and every row count. The restore
+itself is a provider action; the script makes the result checkable.
+
+Environments: local, preview (per pull request), production. Secrets live in the
+host's environment configuration, never in the repository. `DIRECT_URL` is for
+migrations from a trusted machine and is not set in Netlify, because the running
+application never uses the unpooled connection.
+
+The procedure, the environment matrix, the smoke checks and the record tables for
+the two drills are in `docs/DEPLOYMENT.md`.
 
 ## 11. Environment variables
 
@@ -399,6 +423,7 @@ note.
 ```
 DATABASE_URL              pooled connection string
 DIRECT_URL                unpooled, for migrations
+DATABASE_POOL_MAX         connections per process, default 3, max 20
 AUTH_JWT_SECRET           signing key
 AUTH_TOKEN_TTL            access token lifetime
 ORDER_TOKEN_SECRET        signing key for guest order tokens
@@ -541,7 +566,11 @@ specifications, put to the project owner and confirmed. It is recorded here so
 8. **Rider.** Today's deliveries, status updates, cash recording.
 9. **Notifications** (section 8), then Google Sheets reporting.
 10. **Deployment**, including the connection-pool check under concurrent load in
-    section 10 and a restore actually performed once.
+    section 10 and a restore actually performed once. **Prepared 2026-10-28:**
+    `netlify.toml`, the per-instance pool cap and pool check, the readiness probe,
+    the restore drill and `docs/DEPLOYMENT.md`. Creating the Netlify site, setting
+    production secrets, and running the two drills are owner actions and are still
+    outstanding; the record tables in `docs/DEPLOYMENT.md` say so.
 11. **Android**, as a Trusted Web Activity over the PWA. Then iOS.
 
 **Why admin is fifth and not eighth.** `docs/UX_SPEC.md` lists the four
