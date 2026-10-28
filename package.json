@@ -12,6 +12,7 @@
   },
   "scripts": {
     "dev": "npm run dev --workspace @kanofood/web",
+    "postinstall": "npm run db:generate",
     "build": "npm run db:generate && npm run build --workspace @kanofood/web",
     "start": "npm run start --workspace @kanofood/web",
     "lint": "npm run lint --workspaces --if-present",

@@ -57,6 +57,14 @@ things before the first deploy:
    production database.
 5. Production branch: `main`.
 
+The build command is `npm run build` in `netlify.toml`, but the Netlify UI
+prefills `npm --workspace @kanofood/web run build` and that value wins
+(`commandOrigin: ui`). Both work: the root `postinstall` generates the Prisma
+client during install, so the web build never starts without it. If the UI value
+is kept, the only thing lost is the root build's explicit re-generation. The
+client generation does not need database credentials, which is what lets a
+first deploy with no environment variables at least get as far as compiling.
+
 Netlify installs its OpenNext adapter itself. Do not add
 `@netlify/plugin-nextjs` to `package.json` and do not pin the adapter; Netlify's
 Next documentation explains that the adapter is what tracks Next releases.

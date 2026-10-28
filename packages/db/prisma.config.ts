@@ -19,7 +19,7 @@
 
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { defineConfig, env } from "prisma/config";
+import { defineConfig } from "prisma/config";
 
 const packageRoot = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(packageRoot, "..", "..");
@@ -30,13 +30,28 @@ try {
   // No .env on disk. The variables are expected to be in the environment.
 }
 
+/**
+ * The unpooled connection, when this process has been given one.
+ *
+ * `prisma generate` runs from the root `postinstall`, so it runs on a host that
+ * has been connected to the repository but not yet given credentials. Generate
+ * reads the schema and never opens a connection, but `env("DIRECT_URL")` is
+ * resolved while this file loads, so requiring it here would fail the install
+ * on exactly that host and take the build down before Next.js starts.
+ *
+ * An absent URL leaves the datasource undefined rather than falling back to a
+ * placeholder: a placeholder would quietly point a migration at nothing, while
+ * an undefined datasource makes `migrate`, `studio` and `db pull` fail on their
+ * own with a message about the missing connection. Generate is the one command
+ * that has no reason to care.
+ */
+const directUrl = process.env.DIRECT_URL?.trim();
+
 export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: {
     path: "prisma/migrations",
     seed: "npm run seed",
   },
-  datasource: {
-    url: env("DIRECT_URL"),
-  },
+  ...(directUrl ? { datasource: { url: directUrl } } : {}),
 });
