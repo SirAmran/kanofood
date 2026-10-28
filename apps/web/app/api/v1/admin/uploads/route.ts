@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { requireActor } from "@/lib/auth/guard";
 import { ApiError, failure, ok } from "@/lib/api/http";
+import { setFeaturedCardImage } from "@/lib/admin/featured";
 import { setKitchenImage } from "@/lib/admin/kitchens";
 import { setMenuItemImage } from "@/lib/admin/menu";
 import { MAX_UPLOAD_BYTES, identifyImage, storeImage, type UploadPurpose } from "@/lib/storage";
@@ -24,7 +25,7 @@ export const dynamic = "force-dynamic";
 /** No body is parsed, so the only thing to declare is the runtime. */
 export const runtime = "nodejs";
 
-const PURPOSES: readonly UploadPurpose[] = ["kitchen-logo", "kitchen-cover", "menu-item"];
+const PURPOSES: readonly UploadPurpose[] = ["kitchen-logo", "kitchen-cover", "menu-item", "featured-card"];
 
 const fieldsSchema = z.object({
   purpose: z.enum(PURPOSES as unknown as [UploadPurpose, ...UploadPurpose[]]),
@@ -97,6 +98,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     // the previous thumbnail.
     if (parsed.data.purpose === "menu-item") {
       await setMenuItemImage({ itemId: parsed.data.ownerId, imageUrl: stored.url, actor });
+    } else if (parsed.data.purpose === "featured-card") {
+      await setFeaturedCardImage({ cardId: parsed.data.ownerId, imageUrl: stored.url, actor });
     } else {
       await setKitchenImage({
         kitchenId: parsed.data.ownerId,

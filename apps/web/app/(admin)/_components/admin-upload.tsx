@@ -20,8 +20,8 @@ import { Alert, Upload, useToast, type UploadResult } from "@kanofood/ui";
  * the record already exists, because an image needs something to belong to.
  */
 export interface AdminUploadProps {
-  /** `kitchen-logo`, `kitchen-cover` or `menu-item`. */
-  readonly purpose: "kitchen-logo" | "kitchen-cover" | "menu-item";
+  /** `kitchen-logo`, `kitchen-cover`, `menu-item` or `featured-card`. */
+  readonly purpose: "kitchen-logo" | "kitchen-cover" | "menu-item" | "featured-card";
   /**
    * The record the image attaches to. Omitted by the kitchen uploader for logo
    * and cover, where the kitchen is the caller's membership rather than a value

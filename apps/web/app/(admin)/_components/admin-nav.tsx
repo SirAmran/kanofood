@@ -62,6 +62,7 @@ const GROUPS: readonly NavGroup[] = [
     label: "Setup",
     items: [
       { href: "/admin/zones", label: "Zones and fees" },
+      { href: "/admin/featured", label: "Home highlights" },
       { href: "/admin/settings", label: "Settings" },
     ],
   },

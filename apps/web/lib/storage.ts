@@ -138,7 +138,7 @@ export function identifyImage(bytes: Uint8Array): ImageKind | null {
 // Uploading
 // ---------------------------------------------------------------------------
 
-export type UploadPurpose = "kitchen-logo" | "kitchen-cover" | "menu-item";
+export type UploadPurpose = "kitchen-logo" | "kitchen-cover" | "menu-item" | "featured-card";
 
 export interface StoredImage {
   /** The full-size object's public URL. */
@@ -234,7 +234,8 @@ export async function storeImage(input: {
     .webp({ quality: 78 })
     .toBuffer();
 
-  const folder = input.purpose === "menu-item" ? "menu-items" : "kitchens";
+  const folder =
+    input.purpose === "menu-item" ? "menu-items" : input.purpose === "featured-card" ? "featured" : "kitchens";
   const token = randomUUID();
   const base = `${folder}/${input.ownerId}/${input.purpose}-${token}`;
 

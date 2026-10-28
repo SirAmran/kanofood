@@ -407,6 +407,39 @@ model MenuItem {
   @@map("menu_items")
 }
 
+/// The home screen's featured rail. Screen 4.1 in docs/UX_SPEC.md.
+///
+/// **Its own table, not a flag on `MenuItem`.** A featured card is a piece of
+/// merchandising: a photograph, a short line, and a link that may point at a
+/// kitchen, a dish or a collection. Tying it to a menu item would have meant an
+/// item could only be featured while it was on a menu, and that changing the
+/// copy meant renaming the dish. A separate row also lets the rail hold a few
+/// cards that are not orderable yet, which is exactly what a "coming soon"
+/// promotion needs.
+///
+/// `image_url` is nullable because a card is created before its photograph is
+/// uploaded: the admin screen creates the row, then attaches an image through
+/// the one upload route, the same order a kitchen and a dish use.
+model FeaturedCard {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  title     String
+  /// The kitchen or the category line under the title. Free text on purpose: it
+  /// is read by a customer, not joined on.
+  subtitle  String?
+  imageUrl  String?  @map("image_url")
+  /// An internal path only. The API refuses anything that is not rooted.
+  href      String   @default("/kitchens")
+  /// A short label such as "New" or "Kano classic". Null means no badge.
+  badge     String?
+  sortOrder Int      @default(0) @map("sort_order")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([isActive, sortOrder])
+  @@map("featured_cards")
+}
+
 // ---------------------------------------------------------------------------
 // Zones and pricing
 // ---------------------------------------------------------------------------
