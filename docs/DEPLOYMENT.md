@@ -175,7 +175,7 @@ Run it against production before launch, and again after any change to
 |---|---|---|---|---|---|
 | 2026-10-28 | `localhost:3100`, pooled `DATABASE_URL` | 3 | 1 | 3 | pass: 60 requests, 20 concurrent, 0 failures, p95 1699ms |
 | 2026-10-28 | `localhost:3101`, direct `DATABASE_URL` | 3 | 2 | 3 | pass: same load, 0 failures, p95 1478ms; the cap is visible here |
-| not run yet | Netlify production | | | | |
+| 2026-10-28 | `https://kfds.netlify.app`, pooled `DATABASE_URL` | 3 | 0 | 20 | pass: 60 requests, 20 concurrent, 0 failures, p50 2397ms, p95 8179ms. Delta 0 because the pooler multiplexes and hides the backends; the latency is cold starts on 20 parallel instances, so this is a correctness pass and not a performance measurement |
 
 ## The restore drill
 
@@ -235,11 +235,11 @@ and accept the data loss between the restore point and the incident.
 ## Launch checklist
 
 - [ ] Supabase pooled and direct strings confirmed, backups/PITR checked.
-- [ ] Netlify site created from `main`, Node 24, root `netlify.toml` in use.
+- [x] Netlify site created from `main`, Node 24, root `netlify.toml` in use.
 - [ ] Production environment variables set; deploy previews on a separate database.
 - [ ] `db:deploy`, `db:seed` and `db:create-admin` run against production.
 - [ ] Production deploy green and the smoke checks below pass.
-- [ ] `db:pool-check` run against production, result recorded above.
+- [x] `db:pool-check` run against production, result recorded above.
 - [ ] Restore drill run against a scratch project, result recorded above.
 - [ ] Custom domain and its certificate, when the domain is chosen.
 
