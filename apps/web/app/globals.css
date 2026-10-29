@@ -21,6 +21,8 @@ body {
   line-height: var(--leading-normal);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-optical-sizing: auto;
+  font-kerning: normal;
   text-rendering: optimizeLegibility;
   /* The grey flash on tap reads as cheap. Every real app disables it. */
   -webkit-tap-highlight-color: transparent;

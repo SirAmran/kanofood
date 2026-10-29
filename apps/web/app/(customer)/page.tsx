@@ -7,6 +7,7 @@ import { readSavedLocation } from "@/lib/public/location";
 import { loadFeaturedCards } from "@/lib/public/featured";
 import { getPublicHome } from "@/lib/public/kitchens";
 
+import { CategoryIcon } from "./_components/category-icon";
 import { FeaturedRail } from "./_components/featured-rail";
 import { KitchenTile } from "./_components/kitchen-tile";
 import { StudentPack } from "./_components/student-pack";
@@ -29,38 +30,18 @@ import { StudentPack } from "./_components/student-pack";
  * The location bar itself belongs to the layout. This screen only reacts to
  * whether a point is known, because every fee and distance on it depends on
  * that.
+ *
+ * The lower half is reassurance and orientation, in the order a first-time
+ * customer needs it: kitchens, popularity once there is any, how delivery works,
+ * how an order runs, and one way into the full list.
  */
 
-/**
- * A dish is easier to scan with a shape than with a word at 14px. These are the
- * categories kitchens actually name, with a plate for anything else; the map is
- * cosmetic and never decides whether a chip renders.
- */
-const CATEGORY_GLYPH: Readonly<Record<string, string>> = {
-  rice: "🍚",
-  "rice dishes": "🍚",
-  grills: "🍢",
-  grill: "🍢",
-  suya: "🍢",
-  soups: "🍲",
-  soup: "🍲",
-  swallows: "🥣",
-  drinks: "🥤",
-  drink: "🥤",
-  desserts: "🍮",
-  dessert: "🍮",
-  breakfast: "🍳",
-  pastries: "🥐",
-  chicken: "🍗",
-  fish: "🐟",
-  "fast food": "🍔",
-  shawarma: "🌯",
-  snacks: "🍟",
-  salads: "🥗",
-};
-
-function glyphFor(name: string): string {
-  return CATEGORY_GLYPH[name.trim().toLowerCase()] ?? "🍽️";
+function Arrow() {
+  return (
+    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
+      <path d="M5 12h13m-5.5-5.5L18 12l-5.5 5.5" />
+    </svg>
+  );
 }
 
 export default async function CustomerHomePage() {
@@ -68,19 +49,32 @@ export default async function CustomerHomePage() {
   const point = location ? { lat: location.lat, lng: location.lng } : null;
   const [home, featured] = await Promise.all([getPublicHome(point), loadFeaturedCards()]);
 
+  const openCount = home.kitchens.filter((kitchen) => kitchen.isOpen).length;
+  const area = home.zone?.name ?? "Kano Metropolitan";
+
   return (
     <>
       <section className="sf-hero">
-        <span className="sf-eyebrow">
-          <span className="sf-live-dot" aria-hidden="true" />
-          {location ? "Delivering to you" : "Kano Metropolitan"} · Open now
-        </span>
+        <div className="sf-hero__kicker">
+          <span className="sf-status" data-tone={openCount > 0 ? "open" : "closed"}>
+            <span className="sf-live-dot" aria-hidden="true" />
+            {openCount > 0 ? "Open now" : "Closed right now"}
+          </span>
+          <span className="sf-hero__place">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <path d="M12 21s7-6.1 7-11a7 7 0 1 0-14 0c0 4.9 7 11 7 11Z" />
+              <circle cx="12" cy="10" r="2.4" />
+            </svg>
+            {area}
+          </span>
+        </div>
+
         <h1 className="sf-hero__title">
           What are you <span className="sf-hero__accent">eating</span> today?
         </h1>
         <p className="sf-hero__sub">
           {location
-            ? `Delivering to ${location.label}${home.zone ? ` · ${home.zone.name}` : ""}.`
+            ? `Delivering to ${location.label}${home.zone ? ` in ${home.zone.name}` : ""}.`
             : "Set your location to see how close each kitchen is and what delivery costs."}
         </p>
       </section>
@@ -104,6 +98,45 @@ export default async function CustomerHomePage() {
         </span>
       </Link>
 
+      <ul className="sf-promises" aria-label="How ordering works">
+        <li className="sf-promise">
+          <span className="sf-promise__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8">
+              <rect x="3" y="6" width="18" height="12" rx="2.5" />
+              <circle cx="12" cy="12" r="2.6" />
+              <path d="M6 9.5h.01M18 14.5h.01" />
+            </svg>
+          </span>
+          <span className="sf-promise__text">
+            <strong>Pay cash</strong>
+            <span>When it reaches your door</span>
+          </span>
+        </li>
+        <li className="sf-promise">
+          <span className="sf-promise__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8">
+              <path d="M12 21s7-6.1 7-11a7 7 0 1 0-14 0c0 4.9 7 11 7 11Z" />
+              <circle cx="12" cy="10" r="2.4" />
+            </svg>
+          </span>
+          <span className="sf-promise__text">
+            <strong>Track every order</strong>
+            <span>From the kitchen to your street</span>
+          </span>
+        </li>
+        <li className="sf-promise">
+          <span className="sf-promise__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8">
+              <path d="M4 10 12 4l8 6v9a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1v-9Z" />
+            </svg>
+          </span>
+          <span className="sf-promise__text">
+            <strong>Kano kitchens</strong>
+            <span>Cooked close to where you are</span>
+          </span>
+        </li>
+      </ul>
+
       {featured.length > 0 ? (
         <section className="sf-section sf-section--featured">
           <SectionHeader
@@ -120,19 +153,30 @@ export default async function CustomerHomePage() {
 
       {home.categories.length > 0 ? (
         <section className="sf-section sf-section--chips">
-          <SectionHeader title="What are you craving?" />
-          <div className="sf-chips" role="list" aria-label="Categories">
+          <SectionHeader
+            title="What are you craving?"
+            action={
+              <Link href="/kitchens" className="kf-link">
+                Browse all
+              </Link>
+            }
+          />
+          <p className="sf-section__sub">Pick a craving and we will show you who cooks it.</p>
+          <div className="sf-cats" role="list" aria-label="Categories">
             {home.categories.map((category) => (
               <Link
                 key={category.name}
                 role="listitem"
                 href={`/kitchens?category=${encodeURIComponent(category.name)}`}
-                className="sf-chip"
+                className="sf-cat"
               >
-                <span className="sf-chip__glyph" aria-hidden="true">
-                  {glyphFor(category.name)}
+                <span className="sf-cat__icon" aria-hidden="true">
+                  <CategoryIcon name={category.name} />
                 </span>
-                {category.name}
+                <span className="sf-cat__name">{category.name}</span>
+                <span className="sf-cat__count">
+                  {category.kitchenCount} {category.kitchenCount === 1 ? "kitchen" : "kitchens"}
+                </span>
               </Link>
             ))}
           </div>
@@ -198,6 +242,78 @@ export default async function CustomerHomePage() {
           </div>
         </section>
       ) : null}
+
+      <section className="sf-section" aria-labelledby="delivery-title">
+        <div className="sf-delivery">
+          <div className="sf-delivery__lead">
+            <span className="sf-delivery__kicker">{area}</span>
+            <h2 className="sf-delivery__title" id="delivery-title">
+              How delivery works here
+            </h2>
+            <p className="sf-delivery__copy">
+              Local kitchens, a quick confirmation call, and cash to the rider when the food
+              arrives. No card, no wallet, no surprises.
+            </p>
+            <Link href="/help" className="sf-text-link">
+              Delivery questions
+              <Arrow />
+            </Link>
+          </div>
+          <ul className="sf-delivery__facts">
+            <li>
+              <span>Delivery fee</span>
+              <strong>{location ? "Shown on every kitchen" : "Set your location to see it"}</strong>
+            </li>
+            <li>
+              <span>Payment</span>
+              <strong>Cash on delivery</strong>
+            </li>
+            <li>
+              <span>Confirmation</span>
+              <strong>One quick call</strong>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section className="sf-section">
+        <SectionHeader title="From craving to doorstep" />
+        <ol className="sf-steps">
+          <li className="sf-step">
+            <span className="sf-step__num" aria-hidden="true">
+              1
+            </span>
+            <h3 className="sf-step__title">Pick a kitchen</h3>
+            <p className="sf-step__copy">Browse what is open near you and compare delivery fees.</p>
+          </li>
+          <li className="sf-step">
+            <span className="sf-step__num" aria-hidden="true">
+              2
+            </span>
+            <h3 className="sf-step__title">Set your spot</h3>
+            <p className="sf-step__copy">Drop a pin or pick your area so the rider can find you.</p>
+          </li>
+          <li className="sf-step">
+            <span className="sf-step__num" aria-hidden="true">
+              3
+            </span>
+            <h3 className="sf-step__title">Pay on arrival</h3>
+            <p className="sf-step__copy">Hand the cash to the rider when the food is at your door.</p>
+          </li>
+        </ol>
+      </section>
+
+      <section className="sf-browse">
+        <div className="sf-browse__body">
+          <span className="sf-browse__kicker">Kano, sorted</span>
+          <h2 className="sf-browse__title">Every open kitchen in one place.</h2>
+          <p className="sf-browse__copy">Menus, prices and delivery fees, without the group chat.</p>
+        </div>
+        <Link href="/kitchens" className="sf-browse__button">
+          Browse kitchens
+          <Arrow />
+        </Link>
+      </section>
     </>
   );
 }

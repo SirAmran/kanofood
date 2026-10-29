@@ -91,8 +91,9 @@
    * self-hosted webfont an expensive first paint, so the stack is the system
    * one until a variable font is proven worth its weight.
    * ------------------------------------------------------------------ */
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, sans-serif;
+  --font-sans: "Segoe UI Variable Text", "Segoe UI Variable", "SF Pro Text", ui-sans-serif,
+    system-ui, -apple-system, "Avenir Next", "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
 
   --text-xs: 0.875rem; /* 14 */
