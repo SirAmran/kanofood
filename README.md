@@ -4,18 +4,21 @@ A food delivery marketplace for Kano Metropolitan. Customers order from
 independent kitchens, the platform delivers, cash is collected on delivery. Four
 roles share one application: customer, kitchen, rider, admin.
 
-The project name `KanoFood` is temporary. The public brand is undecided and is
-read from configuration, so a rename touches settings and not code.
+The repository is named `KanoFood`. The platform trades as KFDs: the name,
+tagline and colours are read from configuration, so a rename is a settings
+change. The mark is the owner's artwork, committed under
+`apps/web/public/brand/`; `BRAND_LOGO_URL` overrides it for a deployment that
+runs on somebody else's face.
 
 ## Status
 
 Phase 10, deployment. Phases 0 to 9 are built: the domain core, the versioned
 API and authentication, admin, customer, kitchen, rider, notifications, Sheets
-reporting and the Leaflet maps. The repository is configured for Netlify and
-hosted PostgreSQL, with a readiness probe, a per-instance connection pool and a
-pool check. No production site has been deployed yet, and the restore drill and
-pool check have not been run against one; `docs/DEPLOYMENT.md` lists those owner
-actions and records their results.
+reporting and the Leaflet maps. The site is live at `https://kfds.netlify.app`
+on Netlify and hosted PostgreSQL, with a readiness probe, a per-instance
+connection pool and a pool check that has passed against production. What
+remains is a real provider-side restore drill and the two Android apps;
+`docs/DEPLOYMENT.md` lists both, with the procedure and the records.
 
 ## The specification
 

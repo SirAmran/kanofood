@@ -5,7 +5,7 @@ import "@kanofood/ui/tokens.css";
 import "@kanofood/ui/components.css";
 import "./globals.css";
 
-import { brandColours, brandName, brandTagline } from "@/lib/brand";
+import { brandColours, brandFaviconUrl, brandName, brandTagline } from "@/lib/brand";
 
 const brand = brandName();
 
@@ -25,6 +25,16 @@ const brandStyle = {
   ...(colours.accent ? { "--brand-accent": colours.accent } : {}),
 } as CSSProperties;
 
+/**
+ * The favicon and the home-screen icon are files: `app/favicon.ico`,
+ * `app/icon.png` and `app/apple-icon.png`. Next's file conventions write the
+ * `<link>` tags from them, so there is nothing to state here, which is why
+ * `icons` is conditional rather than cosmetic. `BRAND_FAVICON_URL` is the escape
+ * hatch for a deployment serving its own face; when it is unset, the committed
+ * artwork is the answer and adding an `icons` entry would only duplicate it.
+ */
+const favicon = brandFaviconUrl();
+
 export const metadata: Metadata = {
   title: {
     default: brand,
@@ -32,7 +42,12 @@ export const metadata: Metadata = {
   },
   description: brandTagline(),
   applicationName: brand,
+  // Served by `app/manifest.webmanifest/route.ts`. Stated rather than left to the
+  // file convention so `/kitchen` can point at its own manifest instead of
+  // inheriting this one; see `lib/manifests.ts`.
+  manifest: "/manifest.webmanifest",
   formatDetection: { telephone: true, address: false, email: false },
+  ...(favicon ? { icons: { icon: favicon, shortcut: favicon, apple: favicon } } : {}),
 };
 
 export const viewport: Viewport = {  width: "device-width",

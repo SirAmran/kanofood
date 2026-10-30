@@ -5,11 +5,12 @@ file is the procedure that follows from them. It is written to be run by the
 project owner, because the two actions that cannot live in the repository are
 creating the Netlify site and performing a provider-side restore.
 
-**Status, 2026-10-28:** the repository is ready for Netlify. No site has been
-created, no production environment exists, and the restore drill and pool check
-have not been run against a deployed URL. Those three are the remaining launch
-actions, and each has a record table at the end of this file. Do not mark Phase
-10 done until they say so.
+**Status, 2026-10-30:** the site is live at `https://kfds.netlify.app` and the
+production pool check has passed against it, both recorded in the tables below.
+Two actions are still outstanding, and neither can be done from the repository:
+a real provider-side restore (the table records a harness comparison, not a
+restore), and signing and publishing the two Android apps in the Play Store.
+Do not mark Phase 10 done until they say so.
 
 ## The shape
 
@@ -218,11 +219,117 @@ Smoke checks, in order:
 2. `GET /api/v1/health/ready` returns `200` with the database check `ok`.
 3. `/` renders the storefront and the seeded zone's delivery strip.
 4. `/admin` reaches sign-in, and a real admin can sign in.
-5. `/manifest.webmanifest` lists 192 and 512 icons, and installing the PWA
-   succeeds on a phone.
+5. `/manifest.webmanifest` and `/kitchen/manifest.webmanifest` both list 192 and
+   512 icons, and installing the PWA succeeds on a phone from each.
 6. One order can be placed in a test kitchen, moved through the kitchen and
    rider screens, and ends settled. Use real content, then clean the fixtures.
 7. Email and push, if configured, record a delivery rather than an error.
+
+## The Play Store, two apps
+
+The platform ships one deployment and two Android apps. They are not two
+codebases: `ng.kfds.app` opens `/`, `ng.kfds.kitchen` opens `/kitchen`, and both
+are Trusted Web Activities wrapping `https://kfds.netlify.app`. Nothing is
+rewritten and nothing is downloaded twice — the WebView in a TWA is Chrome, so
+the app is the site, running on the engine that already has the service worker
+and the session.
+
+That is a deliberate choice for now. A native shell buys performance the site
+does not need yet and costs a second implementation of every screen; the reason
+to reconsider is a feature the web cannot reach (background location for riders,
+say), and `packages/core` keeps the domain rules in one place for that day.
+
+The two apps are:
+
+| | Customer | Kitchen |
+|---|---|---|
+| package name | `ng.kfds.app` | `ng.kfds.kitchen` |
+| start URL | `/` | `/kitchen` |
+| manifest | `/manifest.webmanifest` | `/kitchen/manifest.webmanifest` |
+| icon (Play, 512, no alpha) | `docs/brand/kfds-app-icon-512.png` | `docs/brand/kfds-kitchen-icon-512.png` |
+
+Both manifests exist and are served with `application/manifest+json`; the icon
+files they point at are committed under `apps/web/public/brand/`.
+
+### The one thing that breaks silently
+
+Digital Asset Links. A TWA shows an address bar unless
+`https://kfds.netlify.app/.well-known/assetlinks.json` names the package and the
+SHA-256 fingerprint of the key the app was **signed with** — and the fingerprint
+of the key that signed the AAB is not the one Google re-signs with in Play App
+Signing. Get it from Play Console → the app → App integrity → App signing key
+certificate. Both apps go in the one file:
+
+```json
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "ng.kfds.app",
+      "sha256_cert_fingerprints": ["<customer app signing key SHA-256>"]
+    }
+  },
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "ng.kfds.kitchen",
+      "sha256_cert_fingerprints": ["<kitchen app signing key SHA-256>"]
+    }
+  }
+]
+```
+
+The file is not in the repository yet because the fingerprints do not exist until
+the apps are signed, and a placeholder that ships is worse than a 404 that does
+not. It goes in `apps/web/public/.well-known/assetlinks.json` and is served from
+the site root — a `next.config.ts` rewrite is not needed, `public/` is the root.
+
+### Building them
+
+Per app, on a machine with JDK 17 and the Android SDK:
+
+```
+npm i -g @bubblewrap/cli
+bubblewrap init --manifest https://kfds.netlify.app/manifest.webmanifest
+bubblewrap build
+```
+
+Answer the prompts with the package name, and let it generate a keystore. Then:
+
+- **Keep the keystore out of the repository**, in the same place as the other
+  secrets, and keep two offline copies. Losing it means a new app and a new
+  listing; it cannot be recovered.
+- If Play App Signing is on (it is by default for new apps), Google holds the
+  signing key: the upload key is yours, the fingerprint in `assetlinks.json` is
+  Google's.
+- `bubblewrap init` writes `assetlinks.json` for the *local* keystore. Replace the
+  fingerprint with the App Signing one before trusting it.
+- Build the Kitchen app with `--manifest https://kfds.netlify.app/kitchen/manifest.webmanifest`.
+  Its scope is `/kitchen`, so a link out of the dashboard opens in a browser with
+  an address bar rather than showing a customer's cart to a cook.
+
+### Before the listing can go live
+
+Play needs more than an AAB. None of this is in the repository, and all of it is
+the owner's:
+
+- [ ] Play Console account, $25 once, identity verified.
+- [ ] Privacy policy at a public URL. The app collects a phone number, an address
+      and a push subscription.
+- [ ] Data safety form: what is collected, whether it is shared, whether it is
+      encrypted in transit. The answers must match `docs/PRODUCT_SPEC.md`.
+- [ ] Content rating questionnaire (a food ordering app is not a game; the
+      answers are short, but they are required).
+- [ ] Store listing: short description, full description, feature graphic
+      (1024×500), at least two phone screenshots per app. The screenshots have to
+      be captured from the running site at 1080×2400 or similar.
+- [ ] Target audience and ads declarations; this app is not directed at children.
+- [ ] Closed testing first. A new personal Play developer account must run a
+      closed test with a minimum number of testers for a minimum period before
+      production is unlocked — check the current numbers in Play Console, they
+      change.
 
 ## Rollback
 
@@ -242,6 +349,10 @@ and accept the data loss between the restore point and the incident.
 - [x] `db:pool-check` run against production, result recorded above.
 - [ ] Restore drill run against a scratch project, result recorded above.
 - [ ] Custom domain and its certificate, when the domain is chosen.
+- [ ] Both Android apps built, signed, and uploaded; the App Signing SHA-256
+      fingerprints written into `public/.well-known/assetlinks.json` and deployed.
+- [ ] `assetlinks.json` fetched from the live origin and both apps open without an
+      address bar.
 
 ## What this file does not do
 
@@ -252,3 +363,5 @@ and accept the data loss between the restore point and the incident.
 - It does not prove the maps or the client-side PWA in a browser. This machine
   has no browser driver; the HTTP walks in the phase commits prove the server
   render and the write paths.
+- It does not sign or publish the Android apps. That needs the owner's keystore,
+  Play Console account and identity verification.

@@ -427,10 +427,11 @@ DATABASE_POOL_MAX         connections per process, default 3, max 20
 AUTH_JWT_SECRET           signing key
 AUTH_TOKEN_TTL            access token lifetime
 ORDER_TOKEN_SECRET        signing key for guest order tokens
-BRAND_NAME                public brand, currently undecided
+BRAND_NAME                public brand
+BRAND_SHORT_NAME          wordmark and home-screen name, falls back to BRAND_NAME
 BRAND_TAGLINE
-BRAND_LOGO_URL
-BRAND_FAVICON_URL
+BRAND_LOGO_URL            overrides the committed install icon
+BRAND_FAVICON_URL         overrides the committed favicon
 BRAND_COLOR_PRIMARY
 BRAND_COLOR_ACCENT
 DELIVERY_DEFAULT_ZONE     slug of the default zone
